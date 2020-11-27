@@ -135,5 +135,11 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 
 
 
+
 # Install ASDF
 . $HOME/.asdf/asdf.sh
+
+
+# add yarn global to source
+export PATH="$(yarn global bin):$PATH"
+
