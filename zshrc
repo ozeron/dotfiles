@@ -142,4 +142,5 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 
 # add yarn global to source
 export PATH="$(yarn global bin):$PATH"
-
+# add to export postgresql in PATH
+export PATH="/usr/local/opt/postgresql@9.6/bin:$PATH"
