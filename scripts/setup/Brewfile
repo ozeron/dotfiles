@@ -1,3 +1,4 @@
 #!/bin/bash
-brew cask install react-native-debugger
+# install 0.10 React Native Debugger
+brew update && brew cask install https://raw.githubusercontent.com/Homebrew/homebrew-cask/b6ac3795c1df9f97242481c0817b1165e3e6306a/Casks/react-native-debugger.rb
 brew cask install insomnia

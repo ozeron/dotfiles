@@ -100,6 +100,8 @@ brew_install_or_upgrade 'tldr'
 # brew_install_or_upgrade 'shellcheck'
 # brew_install_or_upgrade 'telnet'
 
+# For Postgres
+brew_install_or_upgrade 'postgresql@9.6'
 # For Ruby
 brew_install_or_upgrade readline
 
