@@ -1,4 +1,4 @@
-# If you come from bash you might have to change your $PATH.
+# If you come from bash you might have to change your $PATH.  [16:27]
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
@@ -70,7 +70,7 @@ DISABLE_AUTO_UPDATE="false"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git gitfast git-flow fasd rails bundler osx rake ruby)
+plugins=(git gitfast git-flow fasd rails bundler macos rake ruby)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -104,6 +104,8 @@ export LANG=en_US.UTF-8
 alias gb="git for-each-ref --sort=committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) |%(authorname) | (%(color:green)%(committerdate:relative)%(color:reset))| %(contents:subject) ' | column -t -s '|'"
 alias gsweep='git branch --merged master | command grep -vE "^(\*|\s*develop\s*|\s*master\s*$)" | command xargs -n 1 git branch -d'
 
+alias k="kubectl"
+
 # ENVIRONMENT CONFIG
 
 export EDITOR=vim
@@ -132,6 +134,8 @@ export PATH=$PATH:$ANDROID_HOME/tools
 export PATH=$PATH:$ANDROID_HOME/tools/bin
 export PATH=$PATH:$ANDROID_HOME/platform-tools
 
+# Serverless tool
+export PATH="$HOME/.serverless/bin:$PATH"
 
 
 
@@ -144,3 +148,43 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 export PATH="$(yarn global bin):$PATH"
 # add to export postgresql in PATH
 export PATH="/usr/local/opt/postgresql@9.6/bin:$PATH"
+export PATH="/usr/local/opt/mongodb-community@4.2/bin:$PATH"
+
+
+if [ -z "$SSH_AUTH_SOCK" ] ; then
+  eval `ssh-agent -s`
+  ssh-add
+fi
+
+# ITERM2 integration
+source ~/.iterm2_shell_integration.zsh
+
+# Added by serverless binary installer
+export PATH="$HOME/.serverless/bin:$PATH"
+
+# tabtab source for packages
+# uninstall by removing these lines
+[[ -f ~/.config/tabtab/__tabtab.zsh ]] && . ~/.config/tabtab/__tabtab.zsh || true
+
+# tabtab source for serverless package
+# uninstall by removing these lines or running `tabtab uninstall serverless`
+[[ -f /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/serverless.zsh ]] && . /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/serverless.zsh
+# tabtab source for sls package
+# uninstall by removing these lines or running `tabtab uninstall sls`
+[[ -f /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/sls.zsh ]] && . /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/sls.zsh
+
+
+
+# Source [/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc] in your profile to enable shell command completion for gcloud.
+source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc
+# ==> Source [/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc] in your profile to add the Google Cloud SDK command line tools to your $PATH.
+source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc
+
+
+# add direnv
+eval "$(direnv hook zsh)"
+
+# add ssh
+#ssh-add -K
+ssh-add --apple-use-keychain
+
