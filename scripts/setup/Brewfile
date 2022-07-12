@@ -3,3 +3,9 @@
 brew update && brew cask install https://raw.githubusercontent.com/Homebrew/homebrew-cask/b6ac3795c1df9f97242481c0817b1165e3e6306a/Casks/react-native-debugger.rb
 brew cask install insomnia
 brew cask install ngrok
+
+
+
+brew install direnv
+brew install imagemagick@6 && brew link imagemagick@6 --force
+brew install gnupg

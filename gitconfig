@@ -38,3 +38,5 @@
 	lau = ls-files --others --exclude-standard
 	au = !git add $(git ls-files -o --exclude-standard)
 
+[diff "sopsdiffer"]
+	textconv = sops -d
