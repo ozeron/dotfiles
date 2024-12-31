@@ -27,7 +27,7 @@ olddir=$HOME/code/dotfiles/old
 # files="vimrc zshrc bashrc tmux.conf gitignore_global ctags screenrc \
     # jshintrc rsync-exclude tool-versions agignore asdfrc psqlrc hushlogin \
     # my.cnf inputrc editrc iex.exs curlrc irbrc gemrc weechat gitattributes"
-files="vimrc vim zshrc tool-versions viminfo asdfrc gitconfig gemrc"
+files="vimrc vim zshrc tool-versions viminfo asdfrc gitconfig gemrc p10k.zsh"
 
 ###############################################################################
 # Functions
