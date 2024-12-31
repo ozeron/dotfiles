@@ -1,206 +1,228 @@
-# If you come from bash you might have to change your $PATH.  [16:27]
-# export PATH=$HOME/bin:/usr/local/bin:$PATH
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
-# Path to your oh-my-zsh installation.
-export ZSH="/Users/ozeron/.oh-my-zsh"
+# ===========================
+# Oh My Zsh Configuration
+# ===========================
+
+export ZSH="$HOME/.oh-my-zsh"
 export ZSH_CACHE_DIR="$ZSH/cache"
 
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme each time oh-my-zsh is loaded, in which case,
-# to know which specific one was loaded, run: echo $RANDOM_THEME
-# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+# Theme Configuration
 ZSH_THEME="ys"
 
-# Set list of themes to pick from when loading at random
-# Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in $ZSH/themes/
-# If set to an empty array, this variable will have no effect.
-# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
+# Plugins
+plugins=(
+  git
+  git-flow
+  gitfast
+  fasd
+  rails
+  bundler
+  macos
+  rake
+  ruby
+)
 
-# Uncomment the following line to use case-sensitive completion.
-# CASE_SENSITIVE="true"
+# Initialize Oh My Zsh
+source "$ZSH/oh-my-zsh.sh"
 
-# Uncomment the following line to use hyphen-insensitive completion.
-# Case-sensitive completion must be off. _ and - will be interchangeable.
-# HYPHEN_INSENSITIVE="true"
+# ===========================
+# Environment Variables
+# ===========================
 
-# Uncomment the following line to disable bi-weekly auto-update checks.
-# DISABLE_AUTO_UPDATE="true"
-DISABLE_AUTO_UPDATE="false"
+# Locale Settings
+export LANG="en_US.UTF-8"
 
-# Uncomment the following line to automatically update without prompting.
-# DISABLE_UPDATE_PROMPT="true"
+# Editor Configuration
+export EDITOR="vim"
 
-# Uncomment the following line to change how often to auto-update (in days).
-# export UPDATE_ZSH_DAYS=13
+# Path Modifications
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.rvm/bin:$HOME/.nodenv/shims:$HOME/.codeium/windsurf/bin:$PATH"
 
-# Uncomment the following line if pasting URLs and other text is messed up.
-# DISABLE_MAGIC_FUNCTIONS="true"
+# Additional Paths for ASDF
+export PATH="$HOME/.asdf/bin:$PATH"
 
-# Uncomment the following line to disable colors in ls.
-# DISABLE_LS_COLORS="true"
+# Language Managers
+# export PYENV_ROOT="$HOME/.pyenv"
+# export PATH="$PYENV_ROOT/bin:$PATH"
+# eval "$(pyenv init -)"
+# eval "$(asdf init -)"  # This line is causing the issue and should be removed
+. "$HOME/.asdf/asdf.sh"
 
-# Uncomment the following line to disable auto-setting terminal title.
-# DISABLE_AUTO_TITLE="true"
+# AWS Configuration
+export AWS_PROFILE="toptal"
 
-# Uncomment the following line to enable command auto-correction.
-# ENABLE_CORRECTION="true"
+# Serverless and Google Cloud SDK Completions
+source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
+source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
 
-# Uncomment the following line to display red dots whilst waiting for completion.
-# COMPLETION_WAITING_DOTS="true"
-
-# Uncomment the following line if you want to disable marking untracked files
-# under VCS as dirty. This makes repository status check for large repositories
-# much, much faster.
-# DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Uncomment the following line if you want to change the command execution time
-# stamp shown in the history command output.
-# You can set one of the optional three formats:
-# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
-# or set a custom format using the strftime function format specifications,
-# see 'man strftime' for details.
-# HIST_STAMPS="mm/dd/yyyy"
-
-# Would you like to use another custom folder than $ZSH/custom?
-# ZSH_CUSTOM=/path/to/new-custom-folder
-
-# Which plugins would you like to load?
-# Standard plugins can be found in $ZSH/plugins/
-# Custom plugins may be added to $ZSH_CUSTOM/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-# Add wisely, as too many plugins slow down shell startup.
-plugins=(git gitfast git-flow fasd rails bundler macos rake ruby)
-
-source $ZSH/oh-my-zsh.sh
-
-# User configuration
-
-# export MANPATH="/usr/local/man:$MANPATH"
-
-# You may need to manually set your language environment
-export LC_ALL=en_US.UTF-8
-export LANG=en_US.UTF-8
-
-# Preferred editor for local and remote sessions
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='mvim'
-# fi
-
-# Compilation flags
-# export ARCHFLAGS="-arch x86_64"
-
-# Set personal aliases, overriding those provided by oh-my-zsh libs,
-# plugins, and themes. Aliases can be placed here, though oh-my-zsh
-# users are encouraged to define aliases within the ZSH_CUSTOM folder.
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
-
-alias gb="git for-each-ref --sort=committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) |%(authorname) | (%(color:green)%(committerdate:relative)%(color:reset))| %(contents:subject) ' | column -t -s '|'"
-alias gsweep='git branch --merged master | command grep -vE "^(\*|\s*develop\s*|\s*master\s*$)" | command xargs -n 1 git branch -d'
-
-alias k="kubectl"
-
-# ENVIRONMENT CONFIG
-
-export EDITOR=vim
-export GMAIL_EMAIL='ozeron@me.com'
-export GMAIL_PASSWORD='zN7jxrsFNN$fD7kpyaJz'
-
-# terminal colorising
-export TERM=xterm-color
-export CLICOLOR=1
-# export LSCOLORS=fxfxcxdxbxegedabagacad
-# PS1='\[\e[0;33m\]\u\[\e[0m\]@\[\e[0;32m\]\h\[\e[0m\]:\[\e[0;34m\]\w\[\e[0m\]\$ '
-
-
-
-# Sprinboard retail
-export SR_DIR="$HOME/code/sr"
-export PATH="$SR_DIR/misc/dev-tools/bin:$PATH"
-export PATH="$HOME/.bin:$PATH"
-alias sagamore=sr
-#export SR_MODULES="sr;landlord;eci"
-export SR_MODULES="sr;landlord;eci"
-# Springboard Android studio setup
-export ANDROID_HOME=$HOME/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/tools
-export PATH=$PATH:$ANDROID_HOME/tools/bin
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-
-# Serverless tool
-export PATH="$HOME/.serverless/bin:$PATH"
-
-
-
-
-# Install ASDF
-. $HOME/.asdf/asdf.sh
-
-
-# add yarn global to source
-export PATH="$(yarn global bin):$PATH"
-# add to export postgresql in PATH
-#export PATH="/usr/local/opt/postgresql@9.6/bin:$PATH"
-export PATH="/usr/local/opt/mongodb-community@4.2/bin:$PATH"
-
-
-if [ -z "$SSH_AUTH_SOCK" ] ; then
-  eval `ssh-agent -s`
-  ssh-add
-fi
-
-# ITERM2 integration
-source ~/.iterm2_shell_integration.zsh
-
-# Added by serverless binary installer
-export PATH="$HOME/.serverless/bin:$PATH"
-
-# tabtab source for packages
-# uninstall by removing these lines
-[[ -f ~/.config/tabtab/__tabtab.zsh ]] && . ~/.config/tabtab/__tabtab.zsh || true
-
-# tabtab source for serverless package
-# uninstall by removing these lines or running `tabtab uninstall serverless`
-[[ -f /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/serverless.zsh ]] && . /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/serverless.zsh
-# tabtab source for sls package
-# uninstall by removing these lines or running `tabtab uninstall sls`
-[[ -f /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/sls.zsh ]] && . /Users/ozeron/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/sls.zsh
-
-
-
-# Source [/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc] in your profile to enable shell command completion for gcloud.
-source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc
-# ==> Source [/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc] in your profile to add the Google Cloud SDK command line tools to your $PATH.
-source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc
-
-
-# add direnv
+# Direnv
 eval "$(direnv hook zsh)"
 
-# add ssh
-#ssh-add -K
-ssh-add --apple-use-keychain
-
-
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/ozeron/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/Users/ozeron/opt/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/Users/ozeron/opt/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/Users/ozeron/opt/miniconda3/bin:$PATH"
-    fi
+# SSH Agent Setup
+if [[ -z "$SSH_AUTH_SOCK" ]]; then
+  eval "$(ssh-agent -s)"
+  ssh-add --apple-use-keychain
 fi
-unset __conda_setup
-# <<< conda initialize <<<
 
+# ===========================
+# ASDF Configuration
+# ===========================
+
+# Add ASDF to PATH
+export PATH="$HOME/.asdf/bin:$PATH"
+
+# Source ASDF
+if [ -f "$HOME/.asdf/asdf.sh" ]; then
+  . "$HOME/.asdf/asdf.sh"
+fi
+
+# Optional: Source ASDF completions
+if [ -f "$HOME/.asdf/completions/asdf.zsh" ]; then
+  . "$HOME/.asdf/completions/asdf.zsh"
+fi
+
+# ===========================
+# Aliases
+# ===========================
+
+alias gb='git for-each-ref --sort=committerdate refs/heads/ --format="%(HEAD) %(color:yellow)%(refname:short)%(color:reset) |%(authorname) | (%(color:green)%(committerdate:relative)%(color:reset))| %(contents:subject)" | column -t -s "|"'
+alias gsweep='git branch --merged master | grep -vE "^(\*|\s*develop\s*|\s*master\s*$)" | xargs -n 1 git branch -d'
+alias k="kubectl"
+alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+# ===========================
+# Functions
+# ===========================
+
+lazy_git() {
+  git add .
+  git commit -m "$1"
+  git push
+}
+
+new_project() {
+  local dry_run=0
+  local project_name=""
+  local show_help=0
+
+  for arg in "$@"; do
+    case $arg in
+      --dry)
+        dry_run=1
+        ;;
+      --help)
+        show_help=1
+        ;;
+      *)
+        project_name="$arg"
+        ;;
+    esac
+  done
+
+  if [[ $show_help -eq 1 ]]; then
+    echo "This function initializes a new project directory with a unique numeric prefix."
+    echo "Usage: new_project [OPTIONS] [PROJECT_NAME]"
+    echo "Options:"
+    echo "  --dry    Simulate the creation of a new project directory without actually creating it."
+    echo "  --help   Display this detailed help message and exit."
+    return 0
+  fi
+
+  # Find the highest numbered project
+  last_project=$(ls | grep -E '^[0-9]{4}[_-]' | sort -r | head -n 1)
+
+  # Extract the number from the project name and increment it
+  if [[ $last_project =~ ^([0-9]+)[_-] ]]; then
+    next_number=$((10#${match[1]} + 1))
+    next_number=$(printf "%04d" "$next_number")
+  else
+    echo "No matching project found. Setting default number."
+    next_number="0001"
+  fi
+
+  # Create a new project directory with the next number
+  new_project_name="${next_number}-${project_name}"
+
+  if [[ $dry_run -eq 1 ]]; then
+    echo "DRY RUN: Project folder '$new_project_name' would be created."
+  else
+    mkdir -p "$new_project_name"
+    echo "Project folder '$new_project_name' created."
+  fi
+}
+
+restart_audio() {
+  sudo pkill -x coreaudio
+  echo "coreaudio processes terminated."
+}
+
+# ===========================
+# Sourcing External Files
+# ===========================
+
+# iTerm2 Integration
+if [[ -f "$HOME/.iterm2_shell_integration.zsh" ]]; then
+  source "$HOME/.iterm2_shell_integration.zsh"
+fi
+
+# Tabtab Completions
+[[ -f "$HOME/.config/tabtab/__tabtab.zsh" ]] && source "$HOME/.config/tabtab/__tabtab.zsh"
+
+# Serverless Completions
+for completion in "serverless" "sls"; do
+  local comp_path="$HOME/code/pdfapi/serverless/chrome/node_modules/tabtab/.completions/$completion.zsh"
+  [[ -f "$comp_path" ]] && source "$comp_path"
+done
+
+# Fabric Bootstrap
+if [[ -f "$HOME/.config/fabric/fabric-bootstrap.inc" ]]; then
+  source "$HOME/.config/fabric/fabric-bootstrap.inc"
+fi
+
+# Bun Completions and Installation
+if [[ -s "$HOME/.bun/_bun" ]]; then
+  source "$HOME/.bun/_bun"
+fi
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Active RVM
+if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+  source "$HOME/.rvm/scripts/rvm"
+fi
+
+# Windsurf
+export PATH="$HOME/.codeium/windsurf/bin:$PATH"
+
+# Rust Environment via ASDF
+source "$HOME/.asdf/installs/rust/1.73/env"
+
+# ===========================
+# Miscellaneous Settings
+# ===========================
+
+# Enable Command Auto-Correction
+ENABLE_CORRECTION="true"
+
+# Enable Completion Waiting Dots
+COMPLETION_WAITING_DOTS="true"
+
+# Preferred Editor for Project Files
+# Uncomment and customize if needed
+# export EDITOR='mvim'
+
+# ===========================
+# End of .zshrc
+# ===========================
+
+
+source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

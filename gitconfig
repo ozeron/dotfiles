@@ -1,5 +1,5 @@
 [user]
-	name = ozeron
+	name = Alex Lapchenko
 	email = ozeron@me.com
 [mergetool "Kaleidoscope"]
 	cmd = ksdiff --merge --output \"$MERGED\" --base \"$BASE\" -- \"$LOCAL\" --snapshot \"$REMOTE\" --snapshot
@@ -27,6 +27,7 @@
 	trustExitCode = true
 [push]
 	default = simple
+	autoSetupRemote = true
 [alias]
 	l = log --oneline --graph
 	co = checkout
@@ -40,3 +41,8 @@
 
 [diff "sopsdiffer"]
 	textconv = sops -d
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
