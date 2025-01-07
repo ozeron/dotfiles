@@ -15,7 +15,7 @@ DOTFILES_DIR=$HOME/code/dotfiles
 DOTFILE_SCRIPTS_DIR=$DOTFILES_DIR/scripts
 
 
-
+unamestr=$(uname)
 
 
 
