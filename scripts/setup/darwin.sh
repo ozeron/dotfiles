@@ -93,6 +93,9 @@ brew_install_or_upgrade 'git'
 brew_install_or_upgrade 'vim'
 brew_install_or_upgrade 'ctags'
 brew_install_or_upgrade 'tldr'
+brew_install_or_upgrade 'asdf'
+brew_install_or_upgrade 'powerlevel10k'
+brew_install_or_upgrade 'direnv'
 # brew_install_or_upgrade 'tmux' --with-utf8proc
 # $HOME/dotfiles/script/setup/tmux.sh
 # brew_install_or_upgrade 'imagemagick'
@@ -101,7 +104,7 @@ brew_install_or_upgrade 'tldr'
 # brew_install_or_upgrade 'telnet'
 
 # For Postgres
-brew_install_or_upgrade 'postgresql@9.6'
+# brew_install_or_upgrade 'postgresql@9.6'
 # For Ruby
 brew_install_or_upgrade readline
 
@@ -122,6 +125,9 @@ brew unlink openssl && brew link openssl --force
 
 # Exuberant Ctags
 brew_install_or_upgrade ctags
+
+
+brew install --cask ukrainian-unicode-layout
 
 # Visualization library
 # brew_install_or_upgrade graphviz --with-app
@@ -167,6 +173,7 @@ brew_install_or_upgrade ctags
 
 # autoexpect
 # brew_install_or_upgrade expect
+brew install awscli
 
 # For adb
 # brew_tap caskroom/cask
@@ -229,3 +236,6 @@ brew_install_or_upgrade gnupg
 ###############################################################################
 
 # $HOME/dotfiles/scripts/setup/macos-defaults
+
+# Insall open Zsh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"

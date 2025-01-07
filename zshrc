@@ -18,14 +18,14 @@ ZSH_THEME="ys"
 # Plugins
 plugins=(
   git
-  git-flow
-  gitfast
-  fasd
-  rails
-  bundler
+  # git-flow
+  # gitfast
+  # fasd
+  # rails
+  # bundler
   macos
-  rake
-  ruby
+  # rake
+  # ruby
 )
 
 # Initialize Oh My Zsh
@@ -46,20 +46,21 @@ export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.rvm/bin:$HOME/.nodenv/shims:
 
 # Additional Paths for ASDF
 export PATH="$HOME/.asdf/bin:$PATH"
+export PATH="$HOME/.asdf/shims:$PATH"
 
 # Language Managers
 # export PYENV_ROOT="$HOME/.pyenv"
 # export PATH="$PYENV_ROOT/bin:$PATH"
 # eval "$(pyenv init -)"
 # eval "$(asdf init -)"  # This line is causing the issue and should be removed
-. "$HOME/.asdf/asdf.sh"
+# . "$HOME/.asdf/asdf.sh"
 
 # AWS Configuration
-export AWS_PROFILE="toptal"
+# export AWS_PROFILE="toptal"
 
 # Serverless and Google Cloud SDK Completions
-source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
-source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
+# source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
+# source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
 
 # Direnv
 eval "$(direnv hook zsh)"
@@ -201,7 +202,7 @@ fi
 export PATH="$HOME/.codeium/windsurf/bin:$PATH"
 
 # Rust Environment via ASDF
-source "$HOME/.asdf/installs/rust/1.73/env"
+#source "$HOME/.asdf/installs/rust/1.73/env"
 
 # ===========================
 # Miscellaneous Settings
@@ -221,8 +222,8 @@ COMPLETION_WAITING_DOTS="true"
 # End of .zshrc
 # ===========================
 
-
-source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
+source "$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
