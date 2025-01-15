@@ -147,6 +147,11 @@ IFS=$ORIGINAL_IFS
 # done
 # IFS=$ORIGINAL_IFS
 
+
+# Create symlink from local bin directory to Home/bin
+local_bin_dir="$HOME/bin"
+create_or_replace_symlink "$dotfiles/bin" "$local_bin_dir"
+
 # If vundle is already installed, remove it and fetch the latest from Github
 remove_dir_if_exists $dotfiles/vim/bundle/Vundle.vim
 
