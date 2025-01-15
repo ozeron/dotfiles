@@ -229,6 +229,10 @@ COMPLETION_WAITING_DOTS="true"
 # ===========================
 
 source "$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme"
+if [ -f ~/.env ]; then
+  source ~/.env
+fi
+
 source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
