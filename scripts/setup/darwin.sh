@@ -128,6 +128,7 @@ brew_install_or_upgrade ctags
 
 
 brew install --cask ukrainian-unicode-layout
+brew_install_or_upgrade gum
 
 # Visualization library
 # brew_install_or_upgrade graphviz --with-app

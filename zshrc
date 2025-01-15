@@ -43,6 +43,8 @@ export EDITOR="vim"
 
 # Path Modifications
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.rvm/bin:$HOME/.nodenv/shims:$HOME/.codeium/windsurf/bin:$PATH"
+# add home bin to path
+export PATH="$HOME/bin:$PATH"OPENAI_API_KEY
 
 # Additional Paths for ASDF
 export PATH="$HOME/.asdf/bin:$PATH"
@@ -59,6 +61,9 @@ export PATH="$HOME/.asdf/shims:$PATH"
 # export AWS_PROFILE="toptal"
 
 # Serverless and Google Cloud SDK Completions
+
+
+# # Serverless and Google Cloud SDK Completions
 # source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
 # source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
 
@@ -68,8 +73,9 @@ eval "$(direnv hook zsh)"
 # SSH Agent Setup
 if [[ -z "$SSH_AUTH_SOCK" ]]; then
   eval "$(ssh-agent -s)"
-  ssh-add --apple-use-keychain
+  ssh-add --apple-use-keychain ~/.ssh/id_rsa
 fi
+
 
 # ===========================
 # ASDF Configuration
@@ -219,11 +225,92 @@ COMPLETION_WAITING_DOTS="true"
 # export EDITOR='mvim'
 
 # ===========================
-# End of .zshrc
+# KEYS 
 # ===========================
 
 source "$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme"
+source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+
+### FUNCTIONS ###
+# graceful dependency enforcement
+# Usage: needs <executable> [provided by <packagename>]
+# only redefines it here if it's not already defined
+# Define the 'needs' function if not already defined
+needs() {
+  local bin=$1
+  shift
+  command -v "$bin" >/dev/null 2>&1 || { echo >&2 "I require $bin but it's not installed or in PATH; $*"; return 1; }
+}
+
+_generate_curl_api_request_for_please() {
+  needs jq
+  local request args timeout model curl
+  curl=${CURL:-curl}
+  model=${OPENAI_MODEL:-gpt-4-1106-preview}
+  timeout=${OPENAI_TIMEOUT:-30}
+  args="$@"
+  args=$(printf "%b" "$args" | sed "s/'/'\\\\''/g") # Ensure sed is correctly referenced
+  read -r -d '' request <<EOF
+  $curl https://api.openai.com/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  --silent \
+  --max-time $timeout \
+  -d '{"model": "$model", "messages": [{"role": "user", "content": "$args"}], "temperature": 0.7}'
+EOF
+  printf "%b" "$request"
+}
+
+platform() {
+  [ -n "${EDIT}" ] && unset EDIT && edit_function "${FUNCNAME[0]}" "$BASH_SOURCE" && return
+  local unameOut
+  local machine
+  unameOut="$(uname -s)"
+  case "${unameOut}" in
+    Linux*)     machine=Linux;;
+    Darwin*)    machine=macOS;;
+    CYGWIN*)    machine=Cygwin;;
+    MINGW*)     machine=MinGW;;
+    *)          machine="${unameOut}"
+  esac
+  printf "%s" "$machine"
+}
+
+please() {
+  needs curl
+  needs jq
+  needs gum from https://github.com/charmbracelet/gum
+  local request response response_parsed response_parsed_cleaned args
+  local plat=$(platform)
+  request=$(_generate_curl_api_request_for_please "What is the $plat bash command to $@? Only return the command to run itself, do not describe anything. Only use commands and executables that are common on most $plat systems. Do not quote the response and do not use markdown.")
+  
+  # Execute the request and capture the response
+  response=$(eval "$request")
+  
+  # Parse the response
+  response_parsed=$(printf "%s" "$response" | jq --raw-output '.choices[0].message.content')
+  
+  if [[ "$response_parsed" == "null" || "$?" != "0" ]]; then
+    printf "Error:\n" >&2
+    printf "%b\n" "$response" >&2
+    printf "%b\n" "$response_parsed"
+  else
+    response_parsed_cleaned=$(printf "%s" "$response_parsed" | sed -e 's/^[\\n]\+//' -e 's/^[\n]\+//')
+    if gum confirm --affirmative="Run it" --negative="GTFO" "$response_parsed_cleaned"; then
+      printf "\e[0;33m%s\n\e[m" "$response_parsed_cleaned" >&2
+      printf "%s" "$response_parsed_cleaned" | bash
+    else
+      printf "%s" "Aborted."
+      return 1
+    fi
+  fi
+}
+
+
+# ===========================
+# End of .zshrc
+# ===========================

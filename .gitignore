@@ -1,3 +1,5 @@
 old/
 vim/bundle/
 .DS_Store
+gcloud-keys/**
+iterm2/com.googlecode.iterm2.plist
