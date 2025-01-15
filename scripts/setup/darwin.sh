@@ -84,6 +84,18 @@ else
   fancy_echo "Homebrew already installed. Skipping ..."
 fi
 
+create_env_file() {
+  local env_file="$HOME/.env"
+  
+  if [ ! -f "$env_file" ]; then
+    fancy_echo "Creating .env file in HOME directory ..."
+    touch "$env_file"
+  else
+    fancy_echo ".env file already exists in HOME directory. Skipping ..."
+  fi
+}
+
+
 fancy_echo "Updating Homebrew formulas ..."
 brew update
 
@@ -231,6 +243,8 @@ brew_install_or_upgrade gnupg
 
 # Install other software using custom install scripts
 # run_install_scripts
+
+create_env_file
 
 ###############################################################################
 # Configure OSX
