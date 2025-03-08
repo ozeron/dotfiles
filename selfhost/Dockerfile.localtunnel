@@ -1,0 +1,6 @@
+FROM node:alpine
+
+RUN npm install -g localtunnel
+
+# CMD ["lt", "--port", "5678", "--subdomain", "localalexn8n"]
+CMD ["lt", "--port", "5678", "--local-host", "n8n", "--subdomain", "localalexn8n", "--print-requests"]

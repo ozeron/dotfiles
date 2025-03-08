@@ -17,10 +17,27 @@ prepare_request() {
     done < "$files_list_path"
 }
 
+# Function to display help
+show_help() {
+    echo "Usage: $0 <path_to_prompt> <path_to_files_list>"
+    echo
+    echo "This script reads a prompt from a specified file and iterates over a list of file paths,"
+    echo "outputting the contents of each file wrapped in <FILE> tags."
+    echo
+    echo "Options:"
+    echo "  --help    Display this help message and exit"
+}
+
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <path_to_prompt> <path_to_files_list>"
-    exit 1
+    if [ "$1" == "--help" ]; then
+        show_help
+        exit 0
+    else
+        echo "Error: Incorrect number of arguments."
+        show_help
+        exit 1
+    fi
 fi
 
 # Call the function with the command-line arguments
