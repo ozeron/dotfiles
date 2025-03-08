@@ -1,0 +1,58 @@
+version: '3.7'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Optional: Traefik dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "./certs/cert.pem:/certs/cert.pem"
+      - "./certs/key.pem:/certs/key.pem"
+    networks:
+      - traefik-net
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    volumes:
+      - n8n_data:/home/node/.n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - WEBHOOK_URL=https://localalexn8n.loca.lt/
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.local`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls=true"
+      - "traefik.http.routers.n8n.tls.domains[0].main=n8n.local"
+      - "traefik.http.routers.n8n.tls.domains[0].sans=*.n8n.local"
+      - "traefik.http.middlewares.test-redirectscheme.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.test-redirectscheme.redirectscheme.permanent=true"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+    networks:
+      - traefik-net
+
+  localtunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile.localtunnel
+    networks:
+      - traefik-net
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:
+
+networks:
+  traefik-net:
