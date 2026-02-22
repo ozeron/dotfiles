@@ -152,6 +152,10 @@ IFS=$ORIGINAL_IFS
 local_bin_dir="$HOME/bin"
 create_or_replace_symlink "$dotfiles/bin" "$local_bin_dir"
 
+# Create symlink for Claude Code settings
+make_dir_if_missing "$HOME/.claude"
+create_or_replace_symlink "$dotfiles/claude/settings.json" "$HOME/.claude/settings.json"
+
 # If vundle is already installed, remove it and fetch the latest from Github
 remove_dir_if_exists $dotfiles/vim/bundle/Vundle.vim
 
