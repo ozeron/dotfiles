@@ -54,8 +54,8 @@ $DOTFILE_SCRIPTS_DIR/makesymlinks.sh
 
 # Install all the plugins needed
 asdf plugin-add ruby https://github.com/asdf-vm/asdf-ruby.git || true
-asdf plugin-add postgres https://github.com/smashedtoatoms/asdf-postgres.git || true
-asdf plugin-add python https://github.com/danhper/asdf-python.git || true
+# asdf plugin-add postgres https://github.com/smashedtoatoms/asdf-postgres.git || true
+# asdf plugin-add python https://github.com/danhper/asdf-python.git || true
 asdf plugin-add nodejs https://github.com/asdf-vm/asdf-nodejs.git || true
 asdf plugin-add yarn https://github.com/twuni/asdf-yarn.git || true
 

@@ -1,9 +1,19 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
+# ===========================
+# Login noise suppression
+# ===========================
+# Hide "Last login" message
+[[ -f "$HOME/.hushlogin" ]] || touch "$HOME/.hushlogin"
+
+# Silence ssh-add output (macOS keychain manages keys)
+# ssh-add is intentionally not invoked here
+
+# ===========================
+# Powerlevel10k instant prompt (must be first)
+# ===========================
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
+
 
 # ===========================
 # Oh My Zsh Configuration
@@ -13,7 +23,7 @@ export ZSH="$HOME/.oh-my-zsh"
 export ZSH_CACHE_DIR="$ZSH/cache"
 
 # Theme Configuration
-ZSH_THEME="ys"
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Plugins
 plugins=(
@@ -28,7 +38,8 @@ plugins=(
   # ruby
 )
 
-# Initialize Oh My Zsh
+# Initialize Oh My Zsh (fast path)
+ZSH_DISABLE_COMPFIX=true
 source "$ZSH/oh-my-zsh.sh"
 
 # ===========================
@@ -41,14 +52,22 @@ export LANG="en_US.UTF-8"
 # Editor Configuration
 export EDITOR="vim"
 
-# Path Modifications
-export PATH="$HOME/.local/bin:$HOME/.bun/bin:$HOME/.rvm/bin:$HOME/.nodenv/shims:$HOME/.codeium/windsurf/bin:$PATH"
-# add home bin to path
-export PATH="$HOME/bin:$PATH"OPENAI_API_KEY
-
-# Additional Paths for ASDF
-export PATH="$HOME/.asdf/bin:$PATH"
-export PATH="$HOME/.asdf/shims:$PATH"
+# Path Modifications (deduplicated)
+path=(
+  $HOME/.local/bin
+  $HOME/bin
+  $HOME/.asdf/bin
+  $HOME/.asdf/shims
+  $HOME/.bun/bin
+  $HOME/.rvm/bin
+  $HOME/.codeium/windsurf/bin
+  $HOME/.antigravity/antigravity/bin
+  $HOME/.opencode/bin
+  /usr/local/opt/libpq/bin
+  $HOME/code/codex-profile-switcher
+  $path
+)
+typeset -U path
 
 # Language Managers
 # export PYENV_ROOT="$HOME/.pyenv"
@@ -67,15 +86,8 @@ export PATH="$HOME/.asdf/shims:$PATH"
 # source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
 # source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
 
-# Direnv
-eval "$(direnv hook zsh)"
-
-# SSH Agent Setup
-if [[ -z "$SSH_AUTH_SOCK" ]]; then
-  eval "$(ssh-agent -s)"
-  ssh-add --apple-use-keychain ~/.ssh/id_rsa
-fi
-
+# Direnv (lazy)
+command -v direnv >/dev/null && eval "$(direnv hook zsh)"
 
 # ===========================
 # ASDF Configuration
@@ -102,6 +114,8 @@ alias gb='git for-each-ref --sort=committerdate refs/heads/ --format="%(HEAD) %(
 alias gsweep='git branch --merged master | grep -vE "^(\*|\s*develop\s*|\s*master\s*$)" | xargs -n 1 git branch -d'
 alias k="kubectl"
 alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+alias ws="open /Applications/Windsurf.app/"
+alias claude-yolo="claude --permission-mode bypassPermissions"
 
 # ===========================
 # Functions
@@ -192,23 +206,28 @@ if [[ -f "$HOME/.config/fabric/fabric-bootstrap.inc" ]]; then
   source "$HOME/.config/fabric/fabric-bootstrap.inc"
 fi
 
-# Bun Completions and Installation
-if [[ -s "$HOME/.bun/_bun" ]]; then
-  source "$HOME/.bun/_bun"
-fi
+# Bun (lazy load)
 export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+bun() {
+  unset -f bun
+  [[ -s "$HOME/.bun/_bun" ]] && source "$HOME/.bun/_bun"
+  command bun "$@"
+}
 
-# Active RVM
-if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
-  source "$HOME/.rvm/scripts/rvm"
-fi
-
-# Windsurf
-export PATH="$HOME/.codeium/windsurf/bin:$PATH"
+# Active RVM (lazy load)
+rvm() {
+  unset -f rvm
+  source "$HOME/.rvm/scripts/rvm" && rvm "$@"
+}
 
 # Rust Environment via ASDF
 #source "$HOME/.asdf/installs/rust/1.73/env"
+
+# ===========================
+# Completion (fast)
+# ===========================
+autoload -Uz compinit
+compinit -C
 
 # ===========================
 # Miscellaneous Settings
@@ -228,15 +247,15 @@ COMPLETION_WAITING_DOTS="true"
 # KEYS 
 # ===========================
 
-source "$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme"
+# source "$(brew --prefix)/share/powerlevel10k/powerlevel10k.zsh-theme"
 if [ -f ~/.env ]; then
   source ~/.env
 fi
 
-source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
+# source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# Powerlevel10k configuration
+[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
 
 
 ### FUNCTIONS ###
@@ -314,6 +333,9 @@ please() {
   fi
 }
 
+
+export NODE_BUILD_DEFINITIONS=/usr/local/opt/node-build-update-defs/share/node-build
+. "$HOME/.cargo/env"
 
 # ===========================
 # End of .zshrc
