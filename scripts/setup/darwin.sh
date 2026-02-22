@@ -108,6 +108,8 @@ brew_install_or_upgrade 'tldr'
 brew_install_or_upgrade 'asdf'
 brew_install_or_upgrade 'powerlevel10k'
 brew_install_or_upgrade 'direnv'
+brew install --cask docker
+brew install --cask telegram
 # brew_install_or_upgrade 'tmux' --with-utf8proc
 # $HOME/dotfiles/script/setup/tmux.sh
 # brew_install_or_upgrade 'imagemagick'
@@ -140,7 +142,8 @@ brew_install_or_upgrade ctags
 
 
 brew install --cask ukrainian-unicode-layout
-brew_install_or_upgrade gum
+brew install --cask raycast
+# brew_install_or_upgrade gum
 
 # Visualization library
 # brew_install_or_upgrade graphviz --with-app
@@ -186,7 +189,7 @@ brew_install_or_upgrade gum
 
 # autoexpect
 # brew_install_or_upgrade expect
-brew install awscli
+# brew install awscli
 
 # For adb
 # brew_tap caskroom/cask
