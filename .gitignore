@@ -3,3 +3,8 @@ vim/bundle/
 .DS_Store
 gcloud-keys/**
 iterm2/com.googlecode.iterm2.plist
+
+# Ansible
+ansible/.venv/
+ansible/*.retry
+ansible/inventory/group_vars/**/vault.yml

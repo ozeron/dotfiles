@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/code/dotfiles}"
+TARGET="$DOTFILES_ROOT/scripts/lib/codex-profile.sh"
+
+if [ ! -f "$TARGET" ]; then
+  echo "Error: codex-profile implementation not found at $TARGET" >&2
+  exit 1
+fi
+
+exec "$TARGET" "$@"

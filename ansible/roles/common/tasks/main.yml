@@ -1,0 +1,17 @@
+---
+- name: Update pacman cache
+  pacman:
+    update_cache: yes
+
+- name: Install base packages
+  pacman:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Set timezone
+  command: timedatectl set-timezone UTC
+  changed_when: false
+
+- name: Enable NTP
+  command: timedatectl set-ntp true
+  changed_when: false

@@ -1,0 +1,75 @@
+---
+- name: Install Portainer
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Check if Portainer is already installed
+      command: docker service ls --filter name=portainer_portainer
+      register: portainer_check
+      changed_when: false
+      failed_when: false
+
+    - name: Deploy Portainer
+      shell: |
+        docker service rm portainer_portainer portainer_agent || true
+        docker network rm portainer_agent_network || true
+        docker volume create portainer_data || true
+        docker service create \
+          --name portainer_portainer \
+          --publish 9000:9000 \
+          --publish 9443:9443 \
+          --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+          --mount type=volume,src=portainer_data,dst=/data \
+          --constraint 'node.role == manager' \
+          portainer/portainer-ce:latest
+      when: "'portainer_portainer' not in portainer_check.stdout"
+
+    - name: Ensure jq is installed
+      pacman:
+        name: jq
+        state: present
+
+    - name: Get Tailscale IP
+      command: tailscale ip -4
+      register: tailscale_ip
+      changed_when: false
+
+    - name: Get System Hostname
+      command: hostname -s
+      register: system_hostname
+      changed_when: false
+
+    - name: Get Tailscale FQDN
+      shell: tailscale status --json | jq -r .Self.DNSName
+      register: tailscale_fqdn
+      changed_when: false
+      failed_when: false
+
+    - name: Allow Portainer web UI port on Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: '9443'
+        proto: tcp
+
+    - name: Allow Portainer HTTP port on Tailscale (Optional)
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: '9000'
+        proto: tcp
+
+    - name: Show Portainer access URL
+      debug:
+        msg: 
+          - "Access via IP: https://{{ tailscale_ip.stdout }}:9443"
+          - "Access via Name: https://{{ system_hostname.stdout }}:9443"
+          - "Access via FQDN: https://{{ tailscale_fqdn.stdout | default('not-found') }}:9443"

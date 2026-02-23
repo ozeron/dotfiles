@@ -1,0 +1,43 @@
+---
+- name: Enable and start Docker
+  systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add user to docker group
+  user:
+    name: ozeron
+    groups: docker
+    append: yes
+
+- name: Create compose directory
+  file:
+    path: "{{ compose_dir }}"
+    state: directory
+    owner: ozeron
+    group: ozeron
+    mode: "0755"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ compose_dir }}/docker-compose.yml"
+    owner: ozeron
+    group: ozeron
+    mode: "0644"
+  notify: restart compose
+
+- name: Copy traefik config
+  copy:
+    src: "{{ playbook_dir }}/../../../selfhost/traefik.yml"
+    dest: "{{ compose_dir }}/traefik.yml"
+    owner: ozeron
+    group: ozeron
+    mode: "0644"
+  notify: restart compose
+
+- name: Start docker compose services
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_dir }}"
+    state: present

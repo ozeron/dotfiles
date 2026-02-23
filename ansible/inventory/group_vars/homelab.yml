@@ -1,0 +1,13 @@
+---
+# Base packages to install on all homelab machines
+base_packages:
+  - curl
+  - git
+  - htop
+  - ufw
+  - docker
+  - docker-compose
+  - jq
+
+# Docker compose project directory on the remote host
+compose_dir: /home/ozeron/selfhost

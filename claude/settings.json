@@ -1,12 +1,4 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline"
-  },
-  "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true
-  },
-  "skipDangerousModePermissionPrompt": true,
   "permissions": {
     "allow": [
       "Read(*)",
@@ -39,5 +31,14 @@
       "Bash(whoami)",
       "Bash(uname:*)"
     ]
-  }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline"
+  },
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "model": "opus"
 }
