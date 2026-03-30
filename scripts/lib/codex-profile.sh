@@ -7,8 +7,8 @@ JQ_WARNED=0
 # Flows this script aims to handle:
 # 1) Active detection: computed from auth.json -> tokens.account_id, never a marker file.
 # 2) Token refresh drift: save overwrites a profile with the current refreshed tokens.
-# 3) Any switch operation always autosaves current state first.
-# 4) Safety fallback: if current state exists but cannot be mapped to a profile, save a timestamped snapshot.
+# 3) Any switch operation always autosaves current auth state first.
+# 4) Safety fallback: if current auth exists but cannot be mapped to a profile, save a timestamped snapshot.
 
 # Extract a stable account identifier from an auth.json file.
 function get_account_id() {
@@ -46,6 +46,14 @@ function find_profile_by_account_id() {
     done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 }
 
+# Resolve the current auth.json to a saved profile name when possible.
+function get_current_profile_name() {
+    local current_account_id=""
+    current_account_id=$(get_account_id "$CODEX_DIR/auth.json")
+    [ -n "$current_account_id" ] || return 0
+    find_profile_by_account_id "$current_account_id"
+}
+
 # List all saved profiles and indicate the currently active one
 function list_profiles() {
     if [ ! -d "$PROFILES_DIR" ] || [ -z "$(ls -A "$PROFILES_DIR" 2>/dev/null | grep -v "^\.")" ]; then
@@ -54,22 +62,7 @@ function list_profiles() {
     fi
 
     local active=""
-    local current_account_id=""
-    current_account_id=$(get_account_id "$CODEX_DIR/auth.json")
-
-    # Prefer detection based on account_id, since tokens can refresh.
-    if [ -n "$current_account_id" ]; then
-        while IFS= read -r -d '' dir; do
-            local p
-            p=$(basename "$dir")
-            local profile_account_id=""
-            profile_account_id=$(get_account_id "$PROFILES_DIR/$p/auth.json")
-            if [ -n "$profile_account_id" ] && [ "$profile_account_id" = "$current_account_id" ]; then
-                active="$p"
-                break
-            fi
-        done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
-    fi
+    active=$(get_current_profile_name)
 
     echo "Available profiles:"
     while IFS= read -r -d '' dir; do
@@ -83,7 +76,7 @@ function list_profiles() {
     done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 }
 
-# Save current auth.json and config.toml to a named profile
+# Save current auth.json to a named profile
 function save_profile() {
     local name=$1
     if [ -z "$name" ]; then
@@ -107,21 +100,14 @@ function save_profile() {
         }
         copied=1
     fi
-    if [ -f "$CODEX_DIR/config.toml" ]; then
-        cp "$CODEX_DIR/config.toml" "$PROFILES_DIR/$name/" || {
-            echo "Error: Failed to save config.toml to profile '$name'."
-            return 1
-        }
-        copied=1
-    fi
     if [ "$copied" -eq 0 ]; then
-        echo "Error: Nothing to save (missing $CODEX_DIR/auth.json and $CODEX_DIR/config.toml)."
+        echo "Error: Nothing to save (missing $CODEX_DIR/auth.json)."
         return 1
     fi
-    echo "Current state saved to profile '$name'."
+    echo "Current auth saved to profile '$name'."
 }
 
-# Switch to a different profile by copying its files to the main Codex directory
+# Switch to a different profile by copying its auth.json to the main Codex directory
 function switch_profile() {
     local name=$1
     if [ -z "$name" ]; then
@@ -137,33 +123,28 @@ function switch_profile() {
         return 1
     fi
     local target_auth="$PROFILES_DIR/$name/auth.json"
-    local target_config="$PROFILES_DIR/$name/config.toml"
-    if [ ! -f "$target_auth" ] && [ ! -f "$target_config" ]; then
-        echo "Error: Profile '$name' has no auth.json or config.toml to switch to."
+    if [ ! -f "$target_auth" ]; then
+        echo "Error: Profile '$name' has no auth.json to switch to."
         return 1
     fi
 
-    local current_account_id=""
-    current_account_id=$(get_account_id "$CODEX_DIR/auth.json")
     local current_auth_exists=0
-    if [ -f "$CODEX_DIR/auth.json" ] || [ -f "$CODEX_DIR/config.toml" ]; then
+    if [ -f "$CODEX_DIR/auth.json" ]; then
         current_auth_exists=1
     fi
 
     local current_profile=""
-    if [ -n "$current_account_id" ]; then
-        current_profile=$(find_profile_by_account_id "$current_account_id")
-    fi
+    current_profile=$(get_current_profile_name)
 
-    # Always autosave current state before switching.
+    # Always autosave current auth before switching.
     if [ "$current_auth_exists" -eq 1 ]; then
         if [ -n "$current_profile" ]; then
-            echo "Autosaving current state to profile '$current_profile'..."
+            echo "Autosaving current auth to profile '$current_profile'..."
             save_profile "$current_profile" || return 1
         else
             local ts
             ts=$(date +%Y%m%d_%H%M%S)
-            echo "Autosaving current state to snapshot 'auto_$ts'..."
+            echo "Autosaving current auth to snapshot 'auto_$ts'..."
             save_profile "auto_$ts" || return 1
         fi
     fi
@@ -180,14 +161,6 @@ function switch_profile() {
             return 1
         }
     fi
-    if [ -f "$target_config" ]; then
-        cp "$target_config" "$switch_tmp_dir/config.toml" || {
-            rm -rf "$switch_tmp_dir"
-            echo "Error: Failed to stage config.toml from profile '$name'."
-            return 1
-        }
-    fi
-
     if [ -f "$switch_tmp_dir/auth.json" ]; then
         mv "$switch_tmp_dir/auth.json" "$CODEX_DIR/auth.json" || {
             rm -rf "$switch_tmp_dir"
@@ -197,27 +170,18 @@ function switch_profile() {
     else
         rm -f "$CODEX_DIR/auth.json"
     fi
-    if [ -f "$switch_tmp_dir/config.toml" ]; then
-        mv "$switch_tmp_dir/config.toml" "$CODEX_DIR/config.toml" || {
-            rm -rf "$switch_tmp_dir"
-            echo "Error: Failed to apply config.toml for profile '$name'."
-            return 1
-        }
-    else
-        rm -f "$CODEX_DIR/config.toml"
-    fi
     rm -rf "$switch_tmp_dir"
     
     echo "Switched to profile '$name'."
 }
 
-# Remove the current auth and config files (equivalent to logging out)
+# Remove the current auth file (equivalent to logging out)
 function clear_current() {
-    rm -f "$CODEX_DIR/auth.json" "$CODEX_DIR/config.toml"
-    echo "Current auth and config cleared (Logged out)."
+    rm -f "$CODEX_DIR/auth.json"
+    echo "Current auth cleared (Logged out)."
 }
 
-# Initialize a new profile by backing up the current state and starting fresh
+# Initialize a new profile by backing up the current auth state and starting fresh
 function init_profile() {
     local name=$1
     if [ -z "$name" ]; then
@@ -229,24 +193,35 @@ function init_profile() {
         return 1
     fi
 
-    # 1. Save current state to a timestamped backup when files exist.
+    # 1. Save current auth state to its saved profile, or to a timestamped backup.
     local current_state_exists=0
-    if [ -f "$CODEX_DIR/auth.json" ] || [ -f "$CODEX_DIR/config.toml" ]; then
+    if [ -f "$CODEX_DIR/auth.json" ]; then
         current_state_exists=1
     fi
     if [ "$current_state_exists" -eq 1 ]; then
-        local timestamp=$(date +%Y%m%d_%H%M%S)
-        local backup="backup_$timestamp"
-        echo "Backing up current state to '$backup'..."
-        save_profile "$backup" || {
-            echo "Error: Backup failed. Init canceled to avoid data loss."
-            return 1
-        }
+        local current_profile=""
+        current_profile=$(get_current_profile_name)
+        if [ -n "$current_profile" ]; then
+            echo "Backing up current auth to profile '$current_profile'..."
+            save_profile "$current_profile" || {
+                echo "Error: Backup failed. Init canceled to avoid data loss."
+                return 1
+            }
+        else
+            local timestamp
+            timestamp=$(date +%Y%m%d_%H%M%S)
+            local backup="backup_$timestamp"
+            echo "Backing up current auth to '$backup'..."
+            save_profile "$backup" || {
+                echo "Error: Backup failed. Init canceled to avoid data loss."
+                return 1
+            }
+        fi
     else
-        echo "No current state found. Skipping backup."
+        echo "No current auth found. Skipping backup."
     fi
 
-    # 2. Clear current files
+    # 2. Clear current auth
     clear_current
 
     # 3. Create the new empty profile directory
@@ -258,16 +233,16 @@ function init_profile() {
 function show_help() {
     echo "Codex Profile Switcher"
     echo ""
-    echo "Manage multiple Codex authentication profiles and configurations."
+    echo "Manage multiple Codex authentication profiles."
     echo ""
     echo "Usage: codex-profile <command> [arguments]"
     echo ""
     echo "Commands:"
     echo "  list                      List all available profiles and show the active one."
-    echo "  save <name>               Save the current auth and config to a profile named <name>."
+    echo "  save <name>               Save the current auth to a profile named <name>."
     echo "  switch <name>             Switch to the profile named <name>."
-    echo "  init <new_profile_name>   Initialize a new profile. Backs up current state first."
-    echo "  clear                     Clear the current active auth and config (logout)."
+    echo "  init <new_profile_name>   Initialize a new profile. Backs up current auth first."
+    echo "  clear                     Clear the current active auth (logout)."
     echo "  help, -h, --help          Show this help message."
     echo ""
 }
