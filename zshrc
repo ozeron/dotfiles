@@ -1,3 +1,10 @@
+# OPENSPEC:START
+# OpenSpec shell completions configuration
+fpath=("/Users/ozeron/.oh-my-zsh/custom/completions" $fpath)
+autoload -Uz compinit
+compinit
+# OPENSPEC:END
+
 # ===========================
 # Login noise suppression
 # ===========================
@@ -64,7 +71,6 @@ path=(
   $HOME/.antigravity/antigravity/bin
   $HOME/.opencode/bin
   /usr/local/opt/libpq/bin
-  $HOME/code/codex-profile-switcher
   $path
 )
 typeset -U path
@@ -340,3 +346,10 @@ export NODE_BUILD_DEFINITIONS=/usr/local/opt/node-build-update-defs/share/node-b
 # ===========================
 # End of .zshrc
 # ===========================
+
+# qlty completions
+[ -s "/usr/local/share/zsh/site-functions/_qlty" ] && source "/usr/local/share/zsh/site-functions/_qlty"
+
+# qlty
+export QLTY_INSTALL="$HOME/.qlty"
+export PATH="$QLTY_INSTALL/bin:$PATH"
