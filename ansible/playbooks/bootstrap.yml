@@ -3,15 +3,37 @@
   hosts: homelab
   become: true
   tasks:
-    - name: Full system upgrade
-      pacman:
-        update_cache: yes
-        upgrade: yes
+    - name: Wait for pacman lock to be released
+      shell: |
+        for _ in $(seq 1 {{ pacman_lock_wait_retries }}); do
+          if ! fuser /var/lib/pacman/db.lck >/dev/null 2>&1; then
+            exit 0
+          fi
+          sleep {{ pacman_lock_wait_delay_seconds }}
+        done
+        exit 1
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: pacman_lock_wait
+      failed_when: pacman_lock_wait.rc != 0
 
     - name: Install base packages
       pacman:
         name: "{{ base_packages }}"
         state: present
+
+    - name: Enable and start SSH daemon
+      systemd:
+        name: sshd
+        enabled: true
+        state: started
+
+    - name: Enable and start Tailscale daemon
+      systemd:
+        name: tailscaled
+        enabled: true
+        state: started
 
     - name: Enable and start Docker
       systemd:
@@ -24,10 +46,6 @@
         name: ozeron
         groups: docker
         append: yes
-
-    - name: Enable and start UFW
-      community.general.ufw:
-        state: enabled
 
     - name: Allow SSH through UFW
       community.general.ufw:
@@ -52,3 +70,7 @@
         route: yes
         interface: tailscale0
         direction: in
+
+    - name: Enable and start UFW
+      community.general.ufw:
+        state: enabled

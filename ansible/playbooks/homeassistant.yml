@@ -1,0 +1,127 @@
+---
+- name: Deploy Home Assistant + Thread + Matter
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+
+    - name: Ensure Docker Python SDK package is installed
+      pacman:
+        name: python-docker
+        state: present
+
+    - name: Ensure Home Assistant directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ozeron
+        group: ozeron
+        mode: "0755"
+      loop:
+        - /home/ozeron/homeassistant/config
+        - /home/ozeron/homeassistant/matter
+
+    - name: Ensure OTBR serial device exists
+      stat:
+        path: "{{ ha_otbr_serial_device }}"
+      register: otbr_serial_path
+
+    - name: Fail if OTBR serial device path is missing
+      fail:
+        msg: "OTBR serial device '{{ ha_otbr_serial_device }}' not found. Set ha_otbr_serial_device to the correct /dev/serial/by-id/... path."
+      when: not otbr_serial_path.stat.exists
+
+    - name: Check Docker swarm local state
+      ansible.builtin.command:
+        argv:
+          - docker
+          - info
+          - --format
+          - "{% raw %}{{.Swarm.LocalNodeState}}{% endraw %}"
+      register: docker_swarm_state
+      changed_when: false
+      failed_when: false
+
+    - name: Remove legacy swarm services
+      ansible.builtin.command:
+        argv:
+          - docker
+          - service
+          - rm
+          - "{{ item }}"
+      loop:
+        - homeassistant
+        - otbr
+        - matter-server
+      register: swarm_rm
+      changed_when: false
+      failed_when: false
+      when: docker_swarm_state.stdout == "active"
+
+    - name: Deploy Home Assistant container (host network)
+      community.docker.docker_container:
+        name: homeassistant
+        image: homeassistant/home-assistant:stable
+        pull: true
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        volumes:
+          - /home/ozeron/homeassistant/config:/config
+          - /etc/localtime:/etc/localtime:ro
+
+    - name: Deploy OpenThread Border Router container (host network)
+      community.docker.docker_container:
+        name: otbr
+        image: openthread/otbr:latest
+        pull: true
+        timeout: 180
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        capabilities:
+          - NET_ADMIN
+          - NET_RAW
+          - SYS_ADMIN
+        devices:
+          - "{{ ha_otbr_serial_device }}:/dev/ttyOTBR"
+        env:
+          RADIO_URL: "spinel+hdlc+uart:///dev/ttyOTBR?uart-baudrate={{ ha_otbr_baudrate }}"
+          BACKBONE_INTERFACE: "{{ ha_otbr_infra_if }}"
+          HTTP_PORT: "8081"
+          HTTP_HOST: "0.0.0.0"
+        volumes:
+          - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+
+    - name: Deploy Matter Server container (host network)
+      community.docker.docker_container:
+        name: matter-server
+        image: ghcr.io/home-assistant-libs/python-matter-server:stable
+        pull: true
+        state: started
+        restart_policy: unless-stopped
+        network_mode: host
+        volumes:
+          - /home/ozeron/homeassistant/matter:/data
+
+    - name: Get Tailscale IP
+      command: tailscale ip -4
+      register: tailscale_ip
+      changed_when: false
+
+    - name: Get system hostname
+      command: hostname -s
+      register: system_hostname
+      changed_when: false
+
+    - name: Show Home Assistant access URL
+      debug:
+        msg:
+          - "Access via IP: http://{{ tailscale_ip.stdout }}:8123"
+          - "Access via Name: http://{{ system_hostname.stdout }}:8123"
+          - "Matter Server (local only): ws://127.0.0.1:5580/ws"
+          - "OTBR Web: http://{{ tailscale_ip.stdout }}:8081"
+          - "After deploy, add integrations in HA UI: Thread, OpenThread Border Router (URL http://127.0.0.1:8081), and Matter (URL ws://127.0.0.1:5580/ws)."

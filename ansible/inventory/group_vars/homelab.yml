@@ -4,10 +4,119 @@ base_packages:
   - curl
   - git
   - htop
+  - openssh
+  - iwd
+  - networkmanager
   - ufw
   - docker
   - docker-compose
+  - tailscale
   - jq
 
 # Docker compose project directory on the remote host
 compose_dir: /home/ozeron/selfhost
+
+# Choose networking stack: "iwd_networkd" (Omarchy default) or "networkmanager"
+# - iwd_networkd: uses iwd + systemd-networkd, no nmcli required.
+# - networkmanager: uses NetworkManager + nmcli profile settings below.
+network_stack: iwd_networkd
+
+# iwd + systemd-networkd settings (used when network_stack == "iwd_networkd")
+# Wireless interface match used in /etc/systemd/network/25-wireless.network.
+# How to get value:
+#   ip -br link
+# or (inside iwctl):
+#   device list
+# Example values: "wlan0", "wlp2s0", or wildcard "wl*"
+iwd_networkd_interface_match: "wlan0"
+# SSIDs to enforce AutoConnect=true for existing iwd profiles in /var/lib/iwd.
+# Important: each SSID must already have a saved iwd profile file (<SSID>.psk).
+# How to get values:
+# 1) Connect once:
+#      iwctl
+#      station wlan0 connect "HOME"
+# 2) List saved profiles:
+#      sudo find /var/lib/iwd -maxdepth 1 -name '*.psk' -print
+# 3) Use the basename without ".psk" here.
+# Example:
+# iwd_autoconnect_ssids:
+#   - "MyHomeWifi"
+iwd_autoconnect_ssids:
+  - "HOME"
+
+# Optional Wi-Fi connection names to convert from user-scoped to system-scoped.
+# This makes Wi-Fi available before desktop login so SSH works right after boot.
+# Used only when network_stack == "networkmanager".
+# How to get values:
+#   nmcli -t -f NAME connection show
+# Use exact connection names from that output.
+# Example:
+# networkmanager_system_wifi_connections:
+#   - "MyHomeWifi"
+networkmanager_system_wifi_connections: []
+
+# Pacman lock handling for bootstrap:
+# Another package manager process (pacman/yay/paru) can temporarily hold db.lck.
+# Bootstrap waits (retries * delay) before failing.
+pacman_lock_wait_retries: 40
+pacman_lock_wait_delay_seconds: 3
+
+# Home Assistant Container + Thread + Matter settings
+# OTBR serial dongle path (use: ls -l /dev/serial/by-id/)
+ha_otbr_serial_device: "/dev/serial/by-id/usb-SONOFF_SONOFF_Dongle_Lite_MG21_60719c3c35a2ef11a1898a6661ce3355-if00-port0"
+# Typical values: 460800, 115200
+ha_otbr_baudrate: 460800
+# Infrastructure interface for OTBR backbone (LAN/Wi-Fi NIC name)
+# Use: ip -br link
+ha_otbr_infra_if: "wlan0"
+
+# Homepage dashboard optional widget/integration config
+# DNS host served by Traefik for Homepage
+homepage_domain: "my.homelab"
+# Dokploy-managed shared network used by Traefik for app routing
+dokploy_traefik_network: "dokploy-network"
+# Hostnames/IPs Homepage is allowed to serve (prevents host validation errors)
+homepage_allowed_hosts:
+  - "my.homelab"
+  - "my.homelab:3001"
+  - "100.103.128.29"
+  - "100.103.128.29:3001"
+  - "localhost"
+  - "localhost:3001"
+  - "127.0.0.1"
+  - "127.0.0.1:3001"
+# Weather widget location/timezone
+homepage_weather_latitude: 0
+homepage_weather_longitude: 0
+homepage_weather_timezone: "UTC"
+
+# Optional API credentials for deep Homepage widgets.
+# Leave empty to render link-only cards.
+homepage_homeassistant_api_key: ""
+homepage_portainer_api_key: ""
+homepage_traefik_username: ""
+homepage_traefik_password: ""
+
+# Pi-hole settings
+pihole_compose_dir: /home/ozeron/pihole
+pihole_timezone: UTC
+pihole_web_port: 8088
+pihole_dns_listening_mode: all
+# Upstream DNS used by Pi-hole itself (for gravity + forwarding)
+pihole_upstream_dns:
+  - 1.1.1.1
+  - 1.0.0.1
+# Resolver(s) used inside the Pi-hole container
+pihole_container_dns:
+  - 1.1.1.1
+  - 8.8.8.8
+# Change this before first run.
+pihole_web_password: "CHANGE_ME"
+# Local DNS records managed by Ansible (A records).
+# Example:
+# pihole_local_dns_records:
+#   - name: my.homelab
+#     ip: 100.101.102.103
+pihole_local_dns_records:
+  - name: my.homelab
+    ip: 100.103.128.29

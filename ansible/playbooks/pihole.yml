@@ -1,0 +1,173 @@
+---
+- name: Deploy Pi-hole DNS
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Stop and disable conflicting DNS services
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - dnsmasq
+        - systemd-resolved
+        - systemd-resolve
+        - named
+        - unbound
+      failed_when: false
+
+    - name: Mask conflicting DNS services
+      systemd:
+        name: "{{ item }}"
+        masked: true
+      loop:
+        - dnsmasq
+        - systemd-resolved
+        - systemd-resolve
+        - named
+        - unbound
+      failed_when: false
+
+    - name: Ensure host port 53 is free before starting Pi-hole
+      shell: |
+        listeners="$(ss -luntp | grep -E '(:53[[:space:]]|:53$)' || true)"
+        if [ -z "$listeners" ]; then
+          exit 0
+        fi
+
+        # If port 53 is already served by the pihole container, continue.
+        if echo "$listeners" | grep -q "docker-proxy"; then
+          if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -qx "pihole"; then
+            exit 0
+          fi
+        fi
+
+        echo "$listeners"
+        exit 1
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Ensure Pi-hole directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ozeron
+        group: ozeron
+        mode: "0755"
+      loop:
+        - "{{ pihole_compose_dir }}"
+        - "{{ pihole_compose_dir }}/etc-pihole"
+        - "{{ pihole_compose_dir }}/etc-pihole/hosts"
+        - "{{ pihole_compose_dir }}/etc-dnsmasq.d"
+
+    - name: Write Pi-hole docker compose file
+      copy:
+        dest: "{{ pihole_compose_dir }}/docker-compose.yml"
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          services:
+            pihole:
+              image: pihole/pihole:latest
+              container_name: pihole
+              environment:
+                TZ: "{{ pihole_timezone }}"
+                WEBPASSWORD: "{{ pihole_web_password }}"
+                FTLCONF_dns_listeningMode: "{{ pihole_dns_listening_mode }}"
+                DNSMASQ_LISTENING: "{{ pihole_dns_listening_mode }}"
+                FTLCONF_dns_upstreams: "{{ pihole_upstream_dns | join(';') }}"
+                FTLCONF_misc_etc_dnsmasq_d: "true"
+              dns:
+                - "{{ pihole_container_dns[0] }}"
+                - "{{ pihole_container_dns[1] }}"
+              ports:
+                - "53:53/tcp"
+                - "53:53/udp"
+                - "{{ pihole_web_port }}:80/tcp"
+              volumes:
+                - "{{ pihole_compose_dir }}/etc-pihole:/etc/pihole"
+                - "{{ pihole_compose_dir }}/etc-dnsmasq.d:/etc/dnsmasq.d"
+              cap_add:
+                - NET_ADMIN
+              restart: unless-stopped
+
+    - name: Write managed Pi-hole local DNS records (dnsmasq format)
+      copy:
+        dest: "{{ pihole_compose_dir }}/etc-dnsmasq.d/10-local-dns.conf"
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          {% for record in pihole_local_dns_records %}
+          address=/{{ record.name }}/{{ record.ip }}
+          {% endfor %}
+      register: pihole_custom_records
+
+    - name: Start Pi-hole
+      community.docker.docker_compose_v2:
+        project_src: "{{ pihole_compose_dir }}"
+        state: present
+
+    - name: Reload Pi-hole DNS after local record changes
+      command: docker exec pihole pihole reloaddns
+      when: pihole_custom_records is changed
+
+    - name: Allow DNS on Tailscale (UDP)
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: "53"
+        proto: udp
+
+    - name: Allow DNS on Tailscale (TCP)
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: "53"
+        proto: tcp
+
+    - name: Allow DNS from Tailscale CGNAT range (UDP)
+      community.general.ufw:
+        rule: allow
+        from_ip: 100.64.0.0/10
+        direction: in
+        port: "53"
+        proto: udp
+
+    - name: Allow DNS from Tailscale CGNAT range (TCP)
+      community.general.ufw:
+        rule: allow
+        from_ip: 100.64.0.0/10
+        direction: in
+        port: "53"
+        proto: tcp
+
+    - name: Allow Pi-hole web UI on Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: "{{ pihole_web_port | string }}"
+        proto: tcp
+
+    - name: Get Tailscale IP
+      command: tailscale ip -4
+      register: tailscale_ip
+      changed_when: false
+
+    - name: Show Pi-hole next steps
+      debug:
+        msg:
+          - "Pi-hole UI: http://{{ tailscale_ip.stdout }}:{{ pihole_web_port }}/admin"
+          - "Set Tailscale DNS nameserver to: {{ tailscale_ip.stdout }}"
+          - "Managed records file: {{ pihole_compose_dir }}/etc-dnsmasq.d/10-local-dns.conf"

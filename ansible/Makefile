@@ -1,4 +1,4 @@
-.PHONY: install ping bootstrap deploy dokploy lint check
+.PHONY: install ping bootstrap deploy dokploy portainer homeassistant homepage pihole lint check
 
 # Install Python dependencies
 install:
@@ -27,6 +27,14 @@ portainer:
 # Install Home Assistant on homelab
 homeassistant:
 	uv run ansible-playbook playbooks/homeassistant.yml --ask-become-pass
+
+# Install Homepage on homelab
+homepage:
+	uv run ansible-playbook playbooks/homepage.yml --ask-become-pass
+
+# Install Pi-hole on homelab
+pihole:
+	uv run ansible-playbook playbooks/pihole.yml --ask-become-pass
 
 # Syntax check all playbooks
 check:

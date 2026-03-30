@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   traefik:
     image: traefik:v2.10
@@ -51,8 +49,32 @@ services:
     depends_on:
       - n8n
 
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - "HOMEPAGE_ALLOWED_HOSTS={{ homepage_allowed_hosts | join(',') }}"
+    volumes:
+      - "/home/ozeron/homepage/config:/app/config"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network={{ dokploy_traefik_network }}"
+      - "traefik.http.routers.homepage.rule=Host(`{{ homepage_domain }}`)"
+      - "traefik.http.routers.homepage.entrypoints=web,websecure"
+      - "traefik.http.routers.homepage.service=homepage"
+      - "traefik.http.routers.homepage.tls=true"
+      - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+    networks:
+      - traefik-net
+      - dokploy-traefik-net
+
 volumes:
   n8n_data:
 
 networks:
   traefik-net:
+  dokploy-traefik-net:
+    external: true
+    name: "{{ dokploy_traefik_network }}"

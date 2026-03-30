@@ -1,0 +1,229 @@
+---
+- name: Deploy Homepage
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Ensure Homepage config directory exists
+      file:
+        path: /home/ozeron/homepage/config
+        state: directory
+        owner: ozeron
+        group: ozeron
+        mode: "0755"
+
+    - name: Get Tailscale IP
+      command: tailscale ip -4
+      register: tailscale_ip
+      changed_when: false
+
+    - name: Get System Hostname
+      command: hostname -s
+      register: system_hostname
+      changed_when: false
+
+    - name: Write Homepage settings
+      copy:
+        dest: /home/ozeron/homepage/config/settings.yaml
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          title: Homelab Mission Control
+          theme: dark
+          color: slate
+          headerStyle: boxed
+          statusStyle: dot
+          quicklaunch:
+            searchDescriptions: true
+            hideInternetSearch: false
+            showSearchSuggestions: true
+          layout:
+            Core:
+              style: row
+              columns: 3
+            Networking:
+              style: row
+              columns: 2
+            Apps:
+              style: row
+              columns: 2
+      register: homepage_settings
+
+    - name: Write Homepage widgets
+      copy:
+        dest: /home/ozeron/homepage/config/widgets.yaml
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          - datetime:
+              text_size: xl
+              format:
+                dateStyle: short
+                timeStyle: short
+          - search:
+              provider: duckduckgo
+              target: _blank
+          - resources:
+              cpu: true
+              memory: true
+              disk: /
+          - openmeteo:
+              label: Homelab
+              latitude: {{ homepage_weather_latitude }}
+              longitude: {{ homepage_weather_longitude }}
+              timezone: {{ homepage_weather_timezone }}
+              units: metric
+      register: homepage_widgets
+
+    - name: Write Homepage services
+      copy:
+        dest: /home/ozeron/homepage/config/services.yaml
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          - Core:
+              - Dokploy:
+                  href: "http://{{ tailscale_ip.stdout }}:3000"
+                  description: Dokploy control panel
+                  siteMonitor: "http://{{ tailscale_ip.stdout }}:3000"
+              - Portainer:
+                  href: "https://{{ tailscale_ip.stdout }}:9443"
+                  description: Docker management UI
+                  siteMonitor: "https://{{ tailscale_ip.stdout }}:9443"
+          {% if homepage_portainer_api_key | length > 0 %}
+                  widget:
+                    type: portainer
+                    url: "https://{{ tailscale_ip.stdout }}:9443"
+                    env: 1
+                    key: "{{ homepage_portainer_api_key }}"
+          {% endif %}
+              - Home Assistant:
+                  href: "http://{{ tailscale_ip.stdout }}:8123"
+                  description: Home automation
+                  siteMonitor: "http://{{ tailscale_ip.stdout }}:8123"
+          {% if homepage_homeassistant_api_key | length > 0 %}
+                  widget:
+                    type: homeassistant
+                    url: "http://{{ tailscale_ip.stdout }}:8123"
+                    key: "{{ homepage_homeassistant_api_key }}"
+          {% endif %}
+          - Networking:
+              - Traefik Dashboard:
+                  href: "http://{{ tailscale_ip.stdout }}:8080"
+                  description: Reverse proxy dashboard
+                  siteMonitor: "http://{{ tailscale_ip.stdout }}:8080"
+          {% if homepage_traefik_username | length > 0 and homepage_traefik_password | length > 0 %}
+                  widget:
+                    type: traefik
+                    url: "http://{{ tailscale_ip.stdout }}:8080"
+                    username: "{{ homepage_traefik_username }}"
+                    password: "{{ homepage_traefik_password }}"
+          {% endif %}
+              - Tailscale Node:
+                  href: "https://login.tailscale.com/admin/machines"
+                  description: Tailscale machine admin
+          - Apps:
+              - n8n:
+                  href: "http://{{ tailscale_ip.stdout }}:5678"
+                  description: Workflow automation
+                  siteMonitor: "http://{{ tailscale_ip.stdout }}:5678"
+      register: homepage_services
+
+    - name: Write Homepage bookmarks
+      copy:
+        dest: /home/ozeron/homepage/config/bookmarks.yaml
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+        content: |
+          - Infrastructure:
+              - Dokploy:
+                  - abbr: DK
+                    href: "http://{{ tailscale_ip.stdout }}:3000"
+              - Portainer:
+                  - abbr: PT
+                    href: "https://{{ tailscale_ip.stdout }}:9443"
+              - Home Assistant:
+                  - abbr: HA
+                    href: "http://{{ tailscale_ip.stdout }}:8123"
+      register: homepage_bookmarks
+
+    - name: Ensure compose directory exists
+      file:
+        path: "{{ compose_dir }}"
+        state: directory
+        owner: ozeron
+        group: ozeron
+        mode: "0755"
+
+    - name: Copy docker-compose file
+      template:
+        src: "../roles/docker/templates/docker-compose.yml.j2"
+        dest: "{{ compose_dir }}/docker-compose.yml"
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+
+    - name: Copy Traefik config
+      copy:
+        src: "../../selfhost/traefik.yml"
+        dest: "{{ compose_dir }}/traefik.yml"
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+
+    - name: Copy localtunnel Dockerfile
+      copy:
+        src: "../../selfhost/Dockerfile.localtunnel"
+        dest: "{{ compose_dir }}/Dockerfile.localtunnel"
+        owner: ozeron
+        group: ozeron
+        mode: "0644"
+
+    - name: Copy TLS certs directory
+      copy:
+        src: "../../selfhost/certs/"
+        dest: "{{ compose_dir }}/certs/"
+        owner: ozeron
+        group: ozeron
+        mode: preserve
+
+    - name: Check if old Homepage Swarm service exists
+      command: docker service ls --filter name=homepage --format '{% raw %}{{.Name}}{% endraw %}'
+      register: homepage_swarm_check
+      changed_when: false
+      failed_when: false
+
+    - name: Remove old Homepage Swarm service (migrate to compose)
+      command: docker service rm homepage
+      when: "'homepage' in homepage_swarm_check.stdout_lines"
+
+    - name: Start Homepage compose service only
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dir }}"
+        services:
+          - homepage
+        state: present
+
+    - name: Allow Homepage fallback port on Tailscale
+      community.general.ufw:
+        rule: allow
+        interface: tailscale0
+        direction: in
+        port: "3001"
+        proto: tcp
+
+    - name: Show Homepage access URL
+      debug:
+        msg:
+          - "Homepage: http://{{ homepage_domain }}"
+          - "Fallback direct URL: http://{{ tailscale_ip.stdout }}:3001"
+          - "If DNS is not configured, add '{{ tailscale_ip.stdout }} {{ homepage_domain }}' to your client hosts file."
