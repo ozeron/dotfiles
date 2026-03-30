@@ -28,6 +28,7 @@ shell_dir=$repo_root/dotfiles/shell
 git_dir=$repo_root/dotfiles/git
 vim_dir=$repo_root/dotfiles/vim
 tooling_dir=$repo_root/tooling
+obsidian_vault="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/KNOWLEDGE"
 
 ###############################################################################
 # Functions
@@ -89,7 +90,7 @@ symlink_and_save_original() {
             mv $destination $backup_dir;
         fi
     fi
-    echo "Creating symlink to $file in home directory."
+    echo "Creating symlink in home directory."
     echo "Symlinking $destination -> $source"
     ln -s "$source" "$destination"
 }
@@ -106,11 +107,10 @@ echo "Created $olddir for backup of any existing dotfiles in $HOME"
 symlink_and_save_original "$vim_dir/vimrc" "$HOME/.vimrc" "$olddir"
 symlink_and_save_original "$vim_dir/vim" "$HOME/.vim" "$olddir"
 symlink_and_save_original "$shell_dir/zshrc" "$HOME/.zshrc" "$olddir"
+symlink_and_save_original "$shell_dir/zpreztorc" "$HOME/.zpreztorc" "$olddir"
 symlink_and_save_original "$shell_dir/tool-versions" "$HOME/.tool-versions" "$olddir"
-symlink_and_save_original "$shell_dir/asdfrc" "$HOME/.asdfrc" "$olddir"
 symlink_and_save_original "$git_dir/gitconfig" "$HOME/.gitconfig" "$olddir"
 symlink_and_save_original "$shell_dir/gemrc" "$HOME/.gemrc" "$olddir"
-symlink_and_save_original "$shell_dir/p10k.zsh" "$HOME/.p10k.zsh" "$olddir"
 
 # Generate and copy gitconfig
 # $dotfiles/scripts/generate_gitconfig.sh
@@ -157,14 +157,28 @@ create_or_replace_symlink "$repo_root/bin" "$local_bin_dir"
 make_dir_if_missing "$HOME/.claude"
 create_or_replace_symlink "$tooling_dir/claude/settings.json" "$HOME/.claude/settings.json"
 
-# If vundle is already installed, remove it and fetch the latest from Github
-remove_dir_if_exists $vim_dir/vim/bundle/Vundle.vim
+# Create symlink for Ghostty config
+make_dir_if_missing "$HOME/.config"
+make_dir_if_missing "$HOME/.config/ghostty"
+create_or_replace_symlink "$tooling_dir/ghostty/config" "$HOME/.config/ghostty/config"
 
-# Download vundle
-echo "Installing vim plugins..."
-git clone https://github.com/gmarik/Vundle.vim.git $vim_dir/vim/bundle/Vundle.vim
-# Install vundle and all other plugins
-vim +PluginInstall +qall
+# Create symlink for Obsidian vault
+if [ -d "$obsidian_vault" ]; then
+    create_or_replace_symlink "$obsidian_vault" "$HOME/Obsidian"
+else
+    echo "Skipping Obsidian symlink. Vault not found at $obsidian_vault."
+fi
+
+if [ "${INSTALL_VIM_PLUGINS:-0}" = "1" ]; then
+    if [ ! -d "$vim_dir/vim/bundle/Vundle.vim" ]; then
+        echo "Installing Vundle..."
+        git clone https://github.com/gmarik/Vundle.vim.git "$vim_dir/vim/bundle/Vundle.vim"
+    fi
+    echo "Installing vim plugins..."
+    vim +PluginInstall +qall
+else
+    echo "Skipping vim plugin installation. Set INSTALL_VIM_PLUGINS=1 to enable."
+fi
 
 # Link gnome terminal profile if we are on gnome
 # if [ -d $HOME/.gconf/ ]; then

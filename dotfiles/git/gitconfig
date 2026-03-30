@@ -19,6 +19,10 @@
 [core]
 	excludesfile = /Users/ozeron/.gitignore_global
 	editor = vim
+	pager = delta
+[delta]
+	side-by-side = true
+	line-numbers = true
 [difftool "sourcetree"]
 	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
 	path =

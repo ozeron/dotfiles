@@ -1,4 +1,4 @@
-archive/
+archive/symlink-backups/
 dotfiles/vim/vim/bundle/
 dotfiles/vim/viminfo
 .DS_Store

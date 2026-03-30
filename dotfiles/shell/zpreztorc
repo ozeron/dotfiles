@@ -1,0 +1,19 @@
+# Prezto options
+zstyle ':prezto:*:*' color 'yes'
+zstyle ':prezto:module:editor' dot-expansion 'yes'
+zstyle ':prezto:module:git:alias' skip 'yes'
+zstyle ':prezto:module:history-substring-search' case-sensitive 'no'
+zstyle ':prezto:module:prompt' theme 'pure'
+
+zstyle ':prezto:load' pmodule \
+  'environment' \
+  'terminal' \
+  'editor' \
+  'history' \
+  'directory' \
+  'spectrum' \
+  'utility' \
+  'completion' \
+  'history-substring-search' \
+  'git' \
+  'prompt'

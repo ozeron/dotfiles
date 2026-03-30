@@ -25,6 +25,26 @@ Before using the homelab automation on a real machine, update:
 - [`infra/ansible/inventory/group_vars/homelab.yml`](/Users/ozeron/code/dotfiles/infra/ansible/inventory/group_vars/homelab.yml) with your local device paths and DNS values
 - `infra/selfhost/certs/cert.pem` and `infra/selfhost/certs/key.pem` locally if you use the Traefik TLS setup
 
+## New Mac
+
+For a new macOS machine:
+
+```bash
+./dotfiles/scripts/config.sh
+```
+
+The setup installs grouped dependencies from one bootstrap file:
+
+- terminal apps: Ghostty, Docker, Raycast, Telegram, fonts
+- shell and editors: Zsh, Vim, Direnv, Ctags
+- search and navigation: ripgrep, fd, zoxide, fzf, bat, eza, atuin, tldr, jq
+- git and workflow: git-delta, lazygit, tmux, zellij
+- runtime and toolchain: mise, gnupg, readline, openssl
+- power tools: btop, yazi, dust, sd, glow, hyperfine
+
+Shell startup is now built around Prezto with `mise` consuming `.tool-versions`.
+Ghostty config is managed in [`tooling/ghostty/config`](/Users/ozeron/code/dotfiles/tooling/ghostty/config) and symlinked to `~/.config/ghostty/config`.
+
 ## Dotfiles Setup
 
 The bootstrap helpers now live under `dotfiles/scripts/`.
