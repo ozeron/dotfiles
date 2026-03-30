@@ -12,7 +12,7 @@ ORIGINAL_IFS=$IFS
 cd $HOME
 
 DOTFILES_DIR=$HOME/code/dotfiles
-DOTFILE_SCRIPTS_DIR=$DOTFILES_DIR/scripts
+DOTFILE_SCRIPTS_DIR=$DOTFILES_DIR/dotfiles/scripts
 
 
 unamestr=$(uname)

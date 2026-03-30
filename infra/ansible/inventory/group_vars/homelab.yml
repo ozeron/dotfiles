@@ -42,7 +42,7 @@ iwd_networkd_interface_match: "wlan0"
 # iwd_autoconnect_ssids:
 #   - "MyHomeWifi"
 iwd_autoconnect_ssids:
-  - "HOME"
+  []
 
 # Optional Wi-Fi connection names to convert from user-scoped to system-scoped.
 # This makes Wi-Fi available before desktop login so SSH works right after boot.
@@ -63,7 +63,7 @@ pacman_lock_wait_delay_seconds: 3
 
 # Home Assistant Container + Thread + Matter settings
 # OTBR serial dongle path (use: ls -l /dev/serial/by-id/)
-ha_otbr_serial_device: "/dev/serial/by-id/usb-SONOFF_SONOFF_Dongle_Lite_MG21_60719c3c35a2ef11a1898a6661ce3355-if00-port0"
+ha_otbr_serial_device: "/dev/serial/by-id/CHANGE_ME"
 # Typical values: 460800, 115200
 ha_otbr_baudrate: 460800
 # Infrastructure interface for OTBR backbone (LAN/Wi-Fi NIC name)
@@ -79,8 +79,6 @@ dokploy_traefik_network: "dokploy-network"
 homepage_allowed_hosts:
   - "my.homelab"
   - "my.homelab:3001"
-  - "100.103.128.29"
-  - "100.103.128.29:3001"
   - "localhost"
   - "localhost:3001"
   - "127.0.0.1"
@@ -118,5 +116,4 @@ pihole_web_password: "CHANGE_ME"
 #   - name: my.homelab
 #     ip: 100.101.102.103
 pihole_local_dns_records:
-  - name: my.homelab
-    ip: 100.103.128.29
+  []

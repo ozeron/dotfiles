@@ -17,17 +17,17 @@ ORIGINAL_IFS=$IFS
 # The border for headings printed to STDOUT
 border="====="
 
-# Dotfiles directory
-dotfiles=$HOME/code/dotfiles
+# Repo root
+repo_root=$HOME/code/dotfiles
 
 # Old dotfiles backup directory
-olddir=$HOME/code/dotfiles/old
+olddir=$repo_root/archive/symlink-backups
 
-# List of space separated files/folders to symlink in homedir (these are the typical "dotfiles")
-# files="vimrc zshrc bashrc tmux.conf gitignore_global ctags screenrc \
-    # jshintrc rsync-exclude tool-versions agignore asdfrc psqlrc hushlogin \
-    # my.cnf inputrc editrc iex.exs curlrc irbrc gemrc weechat gitattributes"
-files="vimrc vim zshrc tool-versions viminfo asdfrc gitconfig gemrc p10k.zsh"
+# Source directories
+shell_dir=$repo_root/dotfiles/shell
+git_dir=$repo_root/dotfiles/git
+vim_dir=$repo_root/dotfiles/vim
+tooling_dir=$repo_root/tooling
 
 ###############################################################################
 # Functions
@@ -103,13 +103,14 @@ echo "Created $olddir for backup of any existing dotfiles in $HOME"
 
 # move any existing dotfiles in homedir to dotfiles_old directory, then create
 # symlinks
-IFS=$' '
-for file in $files; do
-  oldfile="$HOME/.$file"
-
-  symlink_and_save_original $dotfiles/$file $oldfile $olddir
-done
-IFS=$ORIGINAL_IFS
+symlink_and_save_original "$vim_dir/vimrc" "$HOME/.vimrc" "$olddir"
+symlink_and_save_original "$vim_dir/vim" "$HOME/.vim" "$olddir"
+symlink_and_save_original "$shell_dir/zshrc" "$HOME/.zshrc" "$olddir"
+symlink_and_save_original "$shell_dir/tool-versions" "$HOME/.tool-versions" "$olddir"
+symlink_and_save_original "$shell_dir/asdfrc" "$HOME/.asdfrc" "$olddir"
+symlink_and_save_original "$git_dir/gitconfig" "$HOME/.gitconfig" "$olddir"
+symlink_and_save_original "$shell_dir/gemrc" "$HOME/.gemrc" "$olddir"
+symlink_and_save_original "$shell_dir/p10k.zsh" "$HOME/.p10k.zsh" "$olddir"
 
 # Generate and copy gitconfig
 # $dotfiles/scripts/generate_gitconfig.sh
@@ -150,18 +151,18 @@ IFS=$ORIGINAL_IFS
 
 # Create symlink from local bin directory to Home/bin
 local_bin_dir="$HOME/bin"
-create_or_replace_symlink "$dotfiles/bin" "$local_bin_dir"
+create_or_replace_symlink "$repo_root/bin" "$local_bin_dir"
 
 # Create symlink for Claude Code settings
 make_dir_if_missing "$HOME/.claude"
-create_or_replace_symlink "$dotfiles/claude/settings.json" "$HOME/.claude/settings.json"
+create_or_replace_symlink "$tooling_dir/claude/settings.json" "$HOME/.claude/settings.json"
 
 # If vundle is already installed, remove it and fetch the latest from Github
-remove_dir_if_exists $dotfiles/vim/bundle/Vundle.vim
+remove_dir_if_exists $vim_dir/vim/bundle/Vundle.vim
 
 # Download vundle
 echo "Installing vim plugins..."
-git clone https://github.com/gmarik/Vundle.vim.git $dotfiles/vim/bundle/Vundle.vim
+git clone https://github.com/gmarik/Vundle.vim.git $vim_dir/vim/bundle/Vundle.vim
 # Install vundle and all other plugins
 vim +PluginInstall +qall
 

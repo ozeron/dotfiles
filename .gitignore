@@ -1,10 +1,15 @@
-old/
-vim/bundle/
+archive/
+dotfiles/vim/vim/bundle/
+dotfiles/vim/viminfo
 .DS_Store
 gcloud-keys/**
-iterm2/com.googlecode.iterm2.plist
+infra/selfhost/certs/*.pem
+infra/selfhost/certs/*.key
+infra/ansible/inventory/*.local.yml
+infra/ansible/inventory/group_vars/**/*.local.yml
+tooling/iterm2/com.googlecode.iterm2.plist
 
 # Ansible
-ansible/.venv/
-ansible/*.retry
-ansible/inventory/group_vars/**/vault.yml
+infra/ansible/.venv/
+infra/ansible/*.retry
+infra/ansible/inventory/group_vars/**/vault.yml

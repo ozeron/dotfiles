@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/code/dotfiles}"
-TARGET="$DOTFILES_ROOT/scripts/lib/codex-profile.sh"
+TARGET="$DOTFILES_ROOT/lib/codex-profile.sh"
 
 if [ ! -f "$TARGET" ]; then
   echo "Error: codex-profile implementation not found at $TARGET" >&2

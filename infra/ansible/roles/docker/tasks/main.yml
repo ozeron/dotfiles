@@ -30,7 +30,7 @@
 
 - name: Copy traefik config
   copy:
-    src: "{{ playbook_dir }}/../../../selfhost/traefik.yml"
+    src: "{{ playbook_dir }}/../selfhost/traefik.yml"
     dest: "{{ compose_dir }}/traefik.yml"
     owner: ozeron
     group: ozeron
