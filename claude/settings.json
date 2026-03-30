@@ -30,15 +30,26 @@
       "Bash(date)",
       "Bash(whoami)",
       "Bash(uname:*)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
   "statusLine": {
     "type": "command",
     "command": "bun x ccusage statusline"
   },
   "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": true,
+    "autoresearch@autoresearch": true
   },
-  "skipDangerousModePermissionPrompt": true,
-  "model": "opus"
+  "extraKnownMarketplaces": {
+    "autoresearch": {
+      "source": {
+        "source": "github",
+        "repo": "ozeron/autoresearch"
+      },
+      "autoUpdate": true
+    }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
