@@ -1,273 +1,450 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-CODEX_DIR="$HOME/.codex"
+CODEX_DIR="${CODEX_DIR:-$HOME/.codex}"
 PROFILES_DIR="$CODEX_DIR/profiles"
-JQ_WARNED=0
+DEFAULT_VAULT_ID="7dspguroi747r2ylx4wasz2kpm"
+ITEM_PREFIX="codex/"
+ITEM_TAG="codex-profile"
 
-# Flows this script aims to handle:
-# 1) Active detection: computed from auth.json -> tokens.account_id, never a marker file.
-# 2) Token refresh drift: save overwrites a profile with the current refreshed tokens.
-# 3) Any switch operation always autosaves current auth state first.
-# 4) Safety fallback: if current auth exists but cannot be mapped to a profile, save a timestamped snapshot.
+VAULT_ID="${CODEX_PROFILE_VAULT_ID:-$DEFAULT_VAULT_ID}"
 
-# Extract a stable account identifier from an auth.json file.
-function get_account_id() {
-    local file=$1
-    [ -f "$file" ] || return 1
-    if ! command -v jq >/dev/null 2>&1; then
-        if [ "$JQ_WARNED" -eq 0 ]; then
-            echo "Warning: jq is not installed; account matching is disabled." >&2
-            JQ_WARNED=1
-        fi
-        return 1
+require_command() {
+  local name=$1
+
+  if ! command -v "$name" >/dev/null 2>&1; then
+    echo "Error: required command '$name' is not available." >&2
+    exit 1
+  fi
+}
+
+require_runtime() {
+  require_command jq
+  require_command op
+
+  if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+    echo "Error: OP_SERVICE_ACCOUNT_TOKEN is not set in the environment." >&2
+    exit 1
+  fi
+}
+
+validate_profile_name() {
+  local name=$1
+  [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]]
+}
+
+profile_title() {
+  local name=$1
+  printf '%s%s\n' "$ITEM_PREFIX" "$name"
+}
+
+profile_name_from_title() {
+  local title=$1
+  printf '%s\n' "${title#"$ITEM_PREFIX"}"
+}
+
+get_account_id_from_file() {
+  local file=$1
+  [ -f "$file" ] || return 1
+  jq -r '.tokens.account_id // empty' "$file" 2>/dev/null
+}
+
+get_current_account_id() {
+  get_account_id_from_file "$CODEX_DIR/auth.json"
+}
+
+op_item_list_json() {
+  op item list --vault "$VAULT_ID" --tags "$ITEM_TAG" --format json
+}
+
+remote_item_count() {
+  op_item_list_json | jq 'length'
+}
+
+remote_title_exists() {
+  local title=$1
+
+  op_item_list_json | jq -e --arg title "$title" '.[] | select(.title == $title)' >/dev/null
+}
+
+remote_item_id_by_title() {
+  local title=$1
+
+  op_item_list_json | jq -r --arg title "$title" '[.[] | select(.title == $title) | .id][0] // empty'
+}
+
+remote_item_json_by_id() {
+  local item_id=$1
+  op item get "$item_id" --vault "$VAULT_ID" --format json
+}
+
+remote_item_account_id() {
+  jq -r '[.fields[]? | select(.id == "account_id" or .label == "account_id") | .value][0] // empty'
+}
+
+remote_item_notes_plain() {
+  jq -r '.notesPlain // ([.fields[]? | select(.id == "notesPlain" or .label == "notesPlain") | .value][0] // empty)'
+}
+
+remote_profile_name_by_account_id() {
+  local account_id=$1
+  local item_ids
+  local item_id
+  local item_json
+  local item_account_id
+  local title
+
+  [ -n "$account_id" ] || return 0
+
+  item_ids="$(op_item_list_json | jq -r 'sort_by(.title)[]?.id')"
+  while IFS= read -r item_id; do
+    [ -n "$item_id" ] || continue
+    item_json="$(remote_item_json_by_id "$item_id")"
+    item_account_id="$(printf '%s\n' "$item_json" | remote_item_account_id)"
+    if [ "$item_account_id" = "$account_id" ]; then
+      title="$(printf '%s\n' "$item_json" | jq -r '.title // empty')"
+      profile_name_from_title "$title"
+      return 0
     fi
-    jq -r '.tokens.account_id // empty' "$file" 2>/dev/null
+  done <<<"$item_ids"
 }
 
-# Allow only simple profile names to keep reads/writes inside PROFILES_DIR.
-function validate_profile_name() {
-    local name=$1
-    [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]]
+current_profile_name() {
+  local account_id
+
+  account_id="$(get_current_account_id || true)"
+  [ -n "$account_id" ] || return 0
+  remote_profile_name_by_account_id "$account_id"
 }
 
-# Find a saved profile that matches the provided account_id.
-function find_profile_by_account_id() {
-    local account_id=$1
-    [ -n "$account_id" ] || return 0
-    while IFS= read -r -d '' dir; do
-        local p
-        p=$(basename "$dir")
-        local profile_account_id=""
-        profile_account_id=$(get_account_id "$PROFILES_DIR/$p/auth.json")
-        if [ -n "$profile_account_id" ] && [ "$profile_account_id" = "$account_id" ]; then
-            echo "$p"
-            return 0
-        fi
-    done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+local_profile_names() {
+  if [ ! -d "$PROFILES_DIR" ]; then
+    return 0
+  fi
+
+  find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | sort
 }
 
-# Resolve the current auth.json to a saved profile name when possible.
-function get_current_profile_name() {
-    local current_account_id=""
-    current_account_id=$(get_account_id "$CODEX_DIR/auth.json")
-    [ -n "$current_account_id" ] || return 0
-    find_profile_by_account_id "$current_account_id"
+local_profile_name_by_account_id() {
+  local account_id=$1
+  local name
+  local profile_account_id
+
+  [ -n "$account_id" ] || return 0
+
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    profile_account_id="$(get_account_id_from_file "$PROFILES_DIR/$name/auth.json" || true)"
+    if [ -n "$profile_account_id" ] && [ "$profile_account_id" = "$account_id" ]; then
+      printf '%s\n' "$name"
+      return 0
+    fi
+  done < <(local_profile_names)
 }
 
-# List all saved profiles and indicate the currently active one
-function list_profiles() {
-    if [ ! -d "$PROFILES_DIR" ] || [ -z "$(ls -A "$PROFILES_DIR" 2>/dev/null | grep -v "^\.")" ]; then
-        echo "No profiles found."
+prompt_yes_no() {
+  local prompt=$1
+  local answer
+
+  while true; do
+    printf '%s [y/N]: ' "$prompt" >&2
+    if ! IFS= read -r answer; then
+      echo "Error: failed to read confirmation response." >&2
+      exit 1
+    fi
+    case "$answer" in
+      y|Y|yes|YES)
         return 0
-    fi
-
-    local active=""
-    active=$(get_current_profile_name)
-
-    echo "Available profiles:"
-    while IFS= read -r -d '' dir; do
-        local p
-        p=$(basename "$dir")
-        if [ "$p" == "$active" ]; then
-            echo "* $p (active)"
-        else
-            echo "  $p"
-        fi
-    done < <(find "$PROFILES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+        ;;
+      ""|n|N|no|NO)
+        return 1
+        ;;
+      *)
+        echo "Please answer y or n." >&2
+        ;;
+    esac
+  done
 }
 
-# Save current auth.json to a named profile
-function save_profile() {
-    local name=$1
-    if [ -z "$name" ]; then
-        echo "Usage: codex-profile save <name>"
-        return 1
+prompt_for_profile_name() {
+  local prompt=$1
+  local name
+
+  while true; do
+    printf '%s: ' "$prompt" >&2
+    if ! IFS= read -r name; then
+      echo "Error: failed to read profile name." >&2
+      exit 1
     fi
     if ! validate_profile_name "$name"; then
-        echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -"
-        return 1
+      echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -" >&2
+      continue
     fi
-    mkdir -p "$PROFILES_DIR/$name" || {
-        echo "Error: Failed to create profile directory '$PROFILES_DIR/$name'."
-        return 1
-    }
-
-    local copied=0
-    if [ -f "$CODEX_DIR/auth.json" ]; then
-        cp "$CODEX_DIR/auth.json" "$PROFILES_DIR/$name/" || {
-            echo "Error: Failed to save auth.json to profile '$name'."
-            return 1
-        }
-        copied=1
-    fi
-    if [ "$copied" -eq 0 ]; then
-        echo "Error: Nothing to save (missing $CODEX_DIR/auth.json)."
-        return 1
-    fi
-    echo "Current auth saved to profile '$name'."
+    printf '%s\n' "$name"
+    return 0
+  done
 }
 
-# Switch to a different profile by copying its auth.json to the main Codex directory
-function switch_profile() {
-    local name=$1
-    if [ -z "$name" ]; then
-        echo "Usage: codex-profile switch <name>"
-        return 1
-    fi
-    if ! validate_profile_name "$name"; then
-        echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -"
-        return 1
-    fi
-    if [ ! -d "$PROFILES_DIR/$name" ]; then
-        echo "Error: Profile '$name' not found."
-        return 1
-    fi
-    local target_auth="$PROFILES_DIR/$name/auth.json"
-    if [ ! -f "$target_auth" ]; then
-        echo "Error: Profile '$name' has no auth.json to switch to."
-        return 1
-    fi
+upsert_remote_profile() {
+  local name=$1
+  local auth_file=$2
+  local title
+  local account_id=""
+  local auth_payload=""
+  local item_id=""
 
-    local current_auth_exists=0
-    if [ -f "$CODEX_DIR/auth.json" ]; then
-        current_auth_exists=1
-    fi
+  title="$(profile_title "$name")"
+  if [ -f "$auth_file" ]; then
+    auth_payload="$(jq -c . "$auth_file" 2>/dev/null || cat "$auth_file")"
+    account_id="$(get_account_id_from_file "$auth_file" || true)"
+  fi
 
-    local current_profile=""
-    current_profile=$(get_current_profile_name)
+  item_id="$(remote_item_id_by_title "$title")"
+  if [ -n "$item_id" ]; then
+    op item edit "$item_id" \
+      --vault "$VAULT_ID" \
+      --tags "$ITEM_TAG" \
+      "profile_name[text]=$name" \
+      "account_id[text]=$account_id" \
+      "notesPlain=$auth_payload" >/dev/null
+  else
+    op item create \
+      --vault "$VAULT_ID" \
+      --category "Secure Note" \
+      --title "$title" \
+      --tags "$ITEM_TAG" \
+      "profile_name[text]=$name" \
+      "account_id[text]=$account_id" \
+      "notesPlain=$auth_payload" >/dev/null
+  fi
+}
 
-    # Always autosave current auth before switching.
-    if [ "$current_auth_exists" -eq 1 ]; then
-        if [ -n "$current_profile" ]; then
-            echo "Autosaving current auth to profile '$current_profile'..."
-            save_profile "$current_profile" || return 1
-        else
-            local ts
-            ts=$(date +%Y%m%d_%H%M%S)
-            echo "Autosaving current auth to snapshot 'auto_$ts'..."
-            save_profile "auto_$ts" || return 1
-        fi
-    fi
-    
-    local switch_tmp_dir=""
-    switch_tmp_dir=$(mktemp -d "$CODEX_DIR/.switch_tmp.XXXXXX") || {
-        echo "Error: Failed to create temporary directory for switch."
-        return 1
-    }
-    if [ -f "$target_auth" ]; then
-        cp "$target_auth" "$switch_tmp_dir/auth.json" || {
-            rm -rf "$switch_tmp_dir"
-            echo "Error: Failed to stage auth.json from profile '$name'."
-            return 1
-        }
-    fi
-    if [ -f "$switch_tmp_dir/auth.json" ]; then
-        mv "$switch_tmp_dir/auth.json" "$CODEX_DIR/auth.json" || {
-            rm -rf "$switch_tmp_dir"
-            echo "Error: Failed to apply auth.json for profile '$name'."
-            return 1
-        }
+write_auth_payload() {
+  local auth_payload=$1
+  local tmp_file
+
+  mkdir -p "$CODEX_DIR"
+  tmp_file="$(mktemp "$CODEX_DIR/.auth.tmp.XXXXXX")"
+  printf '%s' "$auth_payload" >"$tmp_file"
+  mv "$tmp_file" "$CODEX_DIR/auth.json"
+}
+
+clear_current() {
+  rm -f "$CODEX_DIR/auth.json"
+  echo "Current auth cleared (Logged out)."
+}
+
+maybe_migrate_local_profiles() {
+  local remote_count
+  local local_names=()
+  local current_auth_exists=0
+  local current_account_id=""
+  local matched_local_name=""
+  local import_current_name=""
+  local name
+  local auth_file
+
+  remote_count="$(remote_item_count)"
+  if [ "$remote_count" -gt 0 ]; then
+    return 0
+  fi
+
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    local_names+=("$name")
+  done < <(local_profile_names)
+
+  if [ -f "$CODEX_DIR/auth.json" ]; then
+    current_auth_exists=1
+    current_account_id="$(get_current_account_id || true)"
+    matched_local_name="$(local_profile_name_by_account_id "$current_account_id" || true)"
+  fi
+
+  if [ "${#local_names[@]}" -eq 0 ] && [ "$current_auth_exists" -eq 0 ]; then
+    return 0
+  fi
+
+  echo "No Codex profiles found in 1Password for vault '$VAULT_ID'."
+  if [ "${#local_names[@]}" -gt 0 ]; then
+    echo "Local profiles to import:"
+    for name in "${local_names[@]}"; do
+      echo "  - $name"
+    done
+  fi
+
+  if [ "$current_auth_exists" -eq 1 ]; then
+    if [ -n "$matched_local_name" ]; then
+      echo "Current auth matches local profile '$matched_local_name'."
     else
-        rm -f "$CODEX_DIR/auth.json"
+      import_current_name="$(prompt_for_profile_name "Enter a profile name for the current active auth")"
+      echo "Current auth will also be imported as '$import_current_name'."
     fi
-    rm -rf "$switch_tmp_dir"
-    
-    echo "Switched to profile '$name'."
+  fi
+
+  if ! prompt_yes_no "Import these profiles into 1Password now?"; then
+    echo "Migration canceled."
+    exit 1
+  fi
+
+  for name in "${local_names[@]}"; do
+    if [ "$current_auth_exists" -eq 1 ] && [ -n "$matched_local_name" ] && [ "$name" = "$matched_local_name" ]; then
+      auth_file="$CODEX_DIR/auth.json"
+    else
+      auth_file="$PROFILES_DIR/$name/auth.json"
+    fi
+    upsert_remote_profile "$name" "$auth_file"
+  done
+
+  if [ -n "$import_current_name" ]; then
+    upsert_remote_profile "$import_current_name" "$CODEX_DIR/auth.json"
+  fi
 }
 
-# Remove the current auth file (equivalent to logging out)
-function clear_current() {
+ensure_backend_ready() {
+  require_runtime
+  maybe_migrate_local_profiles
+}
+
+list_profiles() {
+  local items_json
+  local current_name
+  local line
+  local title
+  local name
+
+  items_json="$(op_item_list_json)"
+  if [ "$(printf '%s\n' "$items_json" | jq 'length')" -eq 0 ]; then
+    echo "No profiles found."
+    return 0
+  fi
+
+  current_name="$(current_profile_name || true)"
+
+  echo "Available profiles:"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    title="$line"
+    name="$(profile_name_from_title "$title")"
+    if [ -n "$current_name" ] && [ "$name" = "$current_name" ]; then
+      echo "* $name (active)"
+    else
+      echo "  $name"
+    fi
+  done < <(printf '%s\n' "$items_json" | jq -r 'sort_by(.title)[] | .title')
+}
+
+save_profile() {
+  local name=$1
+
+  if [ -z "$name" ]; then
+    echo "Usage: codex-profile save <name>"
+    return 1
+  fi
+  if ! validate_profile_name "$name"; then
+    echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -"
+    return 1
+  fi
+  if [ ! -f "$CODEX_DIR/auth.json" ]; then
+    echo "Error: Nothing to save (missing $CODEX_DIR/auth.json)."
+    return 1
+  fi
+
+  upsert_remote_profile "$name" "$CODEX_DIR/auth.json"
+  echo "Current auth saved to profile '$name'."
+}
+
+save_current_auth_before_mutation() {
+  local current_name
+
+  if [ ! -f "$CODEX_DIR/auth.json" ]; then
+    return 0
+  fi
+
+  current_name="$(current_profile_name || true)"
+  if [ -n "$current_name" ]; then
+    echo "Autosaving current auth to profile '$current_name'..."
+    upsert_remote_profile "$current_name" "$CODEX_DIR/auth.json"
+    return 0
+  fi
+
+  current_name="$(prompt_for_profile_name "Current auth is not mapped to a profile. Enter a profile name to save it")"
+  echo "Saving current auth to profile '$current_name'..."
+  upsert_remote_profile "$current_name" "$CODEX_DIR/auth.json"
+}
+
+switch_profile() {
+  local name=$1
+  local title
+  local item_id
+  local item_json
+  local auth_payload
+
+  if [ -z "$name" ]; then
+    echo "Usage: codex-profile switch <name>"
+    return 1
+  fi
+  if ! validate_profile_name "$name"; then
+    echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -"
+    return 1
+  fi
+
+  title="$(profile_title "$name")"
+  item_id="$(remote_item_id_by_title "$title")"
+  if [ -z "$item_id" ]; then
+    echo "Error: Profile '$name' not found."
+    return 1
+  fi
+
+  save_current_auth_before_mutation
+
+  item_json="$(remote_item_json_by_id "$item_id")"
+  auth_payload="$(printf '%s\n' "$item_json" | remote_item_notes_plain)"
+  if [ -n "$auth_payload" ]; then
+    write_auth_payload "$auth_payload"
+  else
     rm -f "$CODEX_DIR/auth.json"
-    echo "Current auth cleared (Logged out)."
+  fi
+
+  echo "Switched to profile '$name'."
 }
 
-# Initialize a new profile by backing up the current auth state and starting fresh
-function init_profile() {
-    local name=$1
-    if [ -z "$name" ]; then
-        echo "Usage: codex-profile init <new_profile_name>"
-        return 1
-    fi
-    if ! validate_profile_name "$name"; then
-        echo "Error: Invalid profile name '$name'. Allowed: letters, numbers, ., _, -"
-        return 1
-    fi
+show_help() {
+  echo "Codex Profile Switcher"
+  echo ""
+  echo "Manage multiple Codex authentication profiles."
+  echo ""
+  echo "Usage: codex-profile <command> [arguments]"
+  echo ""
+  echo "Commands:"
+  echo "  list                      List all available profiles and show the active one."
+  echo "  save <name>               Save the current auth to a profile named <name>."
+  echo "  switch <name>             Switch to the profile named <name>."
+  echo "  clear                     Clear the current active auth (logout)."
+  echo "  help, -h, --help          Show this help message."
+  echo ""
+}
 
-    # 1. Save current auth state to its saved profile, or to a timestamped backup.
-    local current_state_exists=0
-    if [ -f "$CODEX_DIR/auth.json" ]; then
-        current_state_exists=1
-    fi
-    if [ "$current_state_exists" -eq 1 ]; then
-        local current_profile=""
-        current_profile=$(get_current_profile_name)
-        if [ -n "$current_profile" ]; then
-            echo "Backing up current auth to profile '$current_profile'..."
-            save_profile "$current_profile" || {
-                echo "Error: Backup failed. Init canceled to avoid data loss."
-                return 1
-            }
-        else
-            local timestamp
-            timestamp=$(date +%Y%m%d_%H%M%S)
-            local backup="backup_$timestamp"
-            echo "Backing up current auth to '$backup'..."
-            save_profile "$backup" || {
-                echo "Error: Backup failed. Init canceled to avoid data loss."
-                return 1
-            }
-        fi
-    else
-        echo "No current auth found. Skipping backup."
-    fi
-
-    # 2. Clear current auth
+case "${1:-}" in
+  list)
+    ensure_backend_ready
+    list_profiles
+    ;;
+  save)
+    ensure_backend_ready
+    save_profile "${2:-}"
+    ;;
+  switch)
+    ensure_backend_ready
+    switch_profile "${2:-}"
+    ;;
+  clear)
     clear_current
-
-    # 3. Create the new empty profile directory
-    mkdir -p "$PROFILES_DIR/$name"
-    
-    echo "New profile '$name' initialized. Ready for new login."
-}
-
-function show_help() {
-    echo "Codex Profile Switcher"
-    echo ""
-    echo "Manage multiple Codex authentication profiles."
-    echo ""
-    echo "Usage: codex-profile <command> [arguments]"
-    echo ""
-    echo "Commands:"
-    echo "  list                      List all available profiles and show the active one."
-    echo "  save <name>               Save the current auth to a profile named <name>."
-    echo "  switch <name>             Switch to the profile named <name>."
-    echo "  init <new_profile_name>   Initialize a new profile. Backs up current auth first."
-    echo "  clear                     Clear the current active auth (logout)."
-    echo "  help, -h, --help          Show this help message."
-    echo ""
-}
-
-case "$1" in
-    list)
-        list_profiles
-        ;;
-    save)
-        save_profile "$2"
-        ;;
-    switch)
-        switch_profile "$2"
-        ;;
-    clear)
-        clear_current
-        ;;
-    init)
-        init_profile "$2"
-        ;;
-    help|-h|--help)
-        show_help
-        ;;
-    *)
-        show_help
-        exit 1
-        ;;
+    ;;
+  help|-h|--help)
+    show_help
+    ;;
+  *)
+    show_help
+    exit 1
+    ;;
 esac

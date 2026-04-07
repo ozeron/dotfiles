@@ -43,7 +43,7 @@ The setup installs grouped dependencies from one bootstrap file:
 - power tools: btop, yazi, dust, sd, glow, hyperfine
 
 Shell startup is now built around Prezto with `mise` consuming `.tool-versions`.
-Ghostty config is managed in [`tooling/ghostty/config`](/Users/ozeron/code/dotfiles/tooling/ghostty/config) and symlinked to `~/.config/ghostty/config`.
+Ghostty config is managed in [`tooling/ghostty/config`](tooling/ghostty/config) and symlinked to `~/.config/ghostty/config`.
 
 ## Dotfiles Setup
 
